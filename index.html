@@ -1327,8 +1327,8 @@ function generateQR(elementId, text, size) {
     </div>
         <div class="form-group">
       <label>الفصل (اكتب الاسم)</label>
-      <input type="text" id="edit-servant-class" list="edit-servant-class-list" placeholder="اكتب اسم الفصل أو اختار من الاقتراحات" autocomplete="off">
-      <datalist id="edit-servant-class-list"></datalist>
+      <input type="text" id="edit-servant-class" placeholder="اكتب اسم الفصل هنا" autocomplete="off" style="width:100%;padding:0.75rem 1rem;border:1px solid var(--border);border-radius:8px;font-size:0.95rem;font-family:inherit">
+      <div id="edit-servant-class-hint" style="margin-top:0.5rem;display:flex;flex-wrap:wrap;gap:0.4rem"></div>
     </div>
 <div class="form-actions">
       <button class="btn btn-primary" onclick="saveEditServant()">حفظ</button>
@@ -1379,9 +1379,8 @@ function generateQR(elementId, text, size) {
     </div>
     <div class="form-group">
       <label>الفصل</label>
-      <select id="edit-student-class">
-        <option value="">اختر الفصل</option>
-      </select>
+      <input type="text" id="edit-student-class" placeholder="اكتب اسم الفصل هنا" autocomplete="off">
+      <div id="edit-student-class-hint" style="margin-top:0.5rem;display:flex;flex-wrap:wrap;gap:0.4rem"></div>
     </div>
     <div class="form-actions">
       <button class="btn btn-primary" onclick="saveEditStudent()">حفظ</button>
@@ -2384,13 +2383,22 @@ async function openEditStudentModal() {
 
 async function loadClassesForEditStudent(selectedClassId = '') {
   const sectorId = document.getElementById('edit-student-sector').value;
-  const classSelect = document.getElementById('edit-student-class');
-  if (!sectorId) { classSelect.innerHTML = '<option value="">اختر الفصل</option>'; return; }
-  const filtered = allClasses.filter(c => c.sector_id === sectorId);
-  classSelect.innerHTML = '<option value="">اختر الفصل</option>' + filtered.map(c => `<option value="${c.id}">${c.name}</option>`).join('');
+  const input = document.getElementById('edit-student-class');
+  const hint = document.getElementById('edit-student-class-hint');
   if (selectedClassId) {
-    classSelect.value = selectedClassId;
+    const cls = allClasses.find(c => c.id === selectedClassId);
+    input.value = cls ? cls.name : '';
   }
+  hint.innerHTML = '';
+  const list = sectorId ? allClasses.filter(c => c.sector_id === sectorId) : allClasses;
+  list.forEach(c => {
+    const b = document.createElement('button');
+    b.type = 'button';
+    b.textContent = c.name;
+    b.style.cssText = 'padding:0.25rem 0.6rem;border:1px solid var(--border);border-radius:20px;background:#f0f4ff;color:var(--primary);font-size:0.8rem;cursor:pointer;font-family:inherit;width:auto';
+    b.onclick = () => { input.value = c.name; };
+    hint.appendChild(b);
+  });
 }
 
 async function saveEditStudent() {
@@ -2401,13 +2409,29 @@ async function saveEditStudent() {
   const address = document.getElementById('edit-student-address').value.trim();
   const phone = document.getElementById('edit-student-phone').value.trim();
   const whatsapp = document.getElementById('edit-student-whatsapp').value.trim();
-  const sectorId = document.getElementById('edit-student-sector').value;
-  const classId = document.getElementById('edit-student-class').value;
+  let sectorId = document.getElementById('edit-student-sector').value;
+  const className = document.getElementById('edit-student-class').value.trim();
 
   if (!name) { alert('الاسم الكامل مطلوب'); return; }
-  if (!classId) { alert('يرجى اختيار الفصل'); return; }
+  if (!className) { alert('اكتب اسم الفصل'); return; }
 
-  const { error } = await sb.from('profiles').update({
+  // دوّر على فصل بنفس الاسم، لو مش موجود اعمل واحد جديد
+  let classId = null;
+  const sameName = allClasses.filter(c => c.name.trim() === className);
+  const found = sameName.find(c => sectorId && c.sector_id === sectorId) || (!sectorId ? sameName[0] : null);
+  if (found) {
+    classId = found.id;
+    if (!sectorId) sectorId = found.sector_id || '';
+  } else {
+    if (!sectorId) { alert('الفصل ده مش موجود. اختار القطاع الأول علشان يتعمل فصل جديد بالاسم ده'); return; }
+    if (!confirm('الفصل "' + className + '" مش موجود في القطاع ده. تعمله فصل جديد؟')) return;
+    const { data: newCls, error: clsErr } = await sb.from('classes').insert({ name: className, sector_id: sectorId }).select().single();
+    if (clsErr) { alert('تعذر إنشاء الفصل: ' + clsErr.message); return; }
+    allClasses.push(newCls);
+    classId = newCls.id;
+  }
+
+  const { data: updated, error } = await sb.from('profiles').update({
     full_name: name,
     birth_date: birth || null,
     gender: gender || null,
@@ -2415,16 +2439,20 @@ async function saveEditStudent() {
     phone: phone || null,
     whatsapp: whatsapp || null,
     sector_id: sectorId || null,
-    class_id: classId || null
-  }).eq('id', id);
+    class_id: classId
+  }).eq('id', id).select();
 
   if (error) {
     alert('حصل خطأ أثناء حفظ التعديلات: ' + error.message);
     return;
   }
+  if (!updated || !updated.length) {
+    alert('التعديل ما اتحفظش في الداتابيز. غالبًا صلاحيات Supabase (RLS) بتمنع التعديل على جدول profiles');
+    return;
+  }
 
   hideModal('edit-student-modal');
-  alert('تم تحديث بيانات المخدوم بنجاح ✅');
+  alert('تم تحديث البيانات بنجاح ✅');
   await loadStudentDetail(id);
   if (typeof loadStudents === 'function') loadStudents();
 }
@@ -2754,8 +2782,16 @@ async function openEditServantModal(id) {
 function loadEditServantClasses() {
   const sectorId = document.getElementById('edit-servant-sector').value;
   const list = sectorId ? allClasses.filter(c => c.sector_id === sectorId) : allClasses;
-  document.getElementById('edit-servant-class-list').innerHTML =
-    list.map(c => `<option value="${String(c.name).replace(/"/g, '&quot;')}"></option>`).join('');
+  const hint = document.getElementById('edit-servant-class-hint');
+  hint.innerHTML = '';
+  list.forEach(c => {
+    const b = document.createElement('button');
+    b.type = 'button';
+    b.textContent = c.name;
+    b.style.cssText = 'padding:0.25rem 0.6rem;border:1px solid var(--border);border-radius:20px;background:#f0f4ff;color:var(--primary);font-size:0.8rem;cursor:pointer;font-family:inherit';
+    b.onclick = () => { document.getElementById('edit-servant-class').value = c.name; };
+    hint.appendChild(b);
+  });
 }
 
 async function saveEditServant() {
@@ -2787,16 +2823,17 @@ async function saveEditServant() {
     }
   }
 
-  const { error } = await sb.from('servants').update({
+  const { data: updated, error } = await sb.from('servants').update({
     full_name: name,
     email: email || null,
     phone: phone || null,
     role,
     sector_id: sectorId || null,
     class_id: classId
-  }).eq('id', id);
+  }).eq('id', id).select();
 
   if (error) { alert('حصل خطأ: ' + error.message); return; }
+  if (!updated || !updated.length) { alert('التعديل ما اتحفظش في الداتابيز. غالبًا صلاحيات Supabase (RLS) بتمنع التعديل على جدول servants'); return; }
   hideModal('edit-servant-modal');
   loadServants();
 }
