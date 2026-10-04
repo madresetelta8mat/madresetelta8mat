@@ -1325,13 +1325,12 @@ function generateQR(elementId, text, size) {
         <option value="">اختر القطاع</option>
       </select>
     </div>
-    <div class="form-group">
-      <label>الفصل</label>
-      <select id="edit-servant-class">
-        <option value="">اختر الفصل</option>
-      </select>
+        <div class="form-group">
+      <label>الفصل (اكتب الاسم)</label>
+      <input type="text" id="edit-servant-class" list="edit-servant-class-list" placeholder="اكتب اسم الفصل أو اختار من الاقتراحات" autocomplete="off">
+      <datalist id="edit-servant-class-list"></datalist>
     </div>
-    <div class="form-actions">
+<div class="form-actions">
       <button class="btn btn-primary" onclick="saveEditServant()">حفظ</button>
       <button class="btn" onclick="hideModal('edit-servant-modal')" style="background:var(--border)">إلغاء</button>
     </div>
@@ -2745,17 +2744,18 @@ async function openEditServantModal(id) {
     allSectors.map(sec => `<option value="${sec.id}">${sec.name}</option>`).join('');
   sectorSel.value = s.sector_id || '';
 
-  loadEditServantClasses(s.class_id || '');
+  loadEditServantClasses();
+  const cls = allClasses.find(c => c.id === s.class_id);
+  document.getElementById('edit-servant-class').value = cls ? cls.name : '';
   showModal('edit-servant-modal');
 }
 
-function loadEditServantClasses(selectedClassId = '') {
+// بتحدّث اقتراحات الفصول حسب القطاع المختار
+function loadEditServantClasses() {
   const sectorId = document.getElementById('edit-servant-sector').value;
-  const classSel = document.getElementById('edit-servant-class');
-  const filtered = sectorId ? allClasses.filter(c => c.sector_id === sectorId) : [];
-  classSel.innerHTML = '<option value="">اختر الفصل</option>' +
-    filtered.map(c => `<option value="${c.id}">${c.name}</option>`).join('');
-  if (selectedClassId) classSel.value = selectedClassId;
+  const list = sectorId ? allClasses.filter(c => c.sector_id === sectorId) : allClasses;
+  document.getElementById('edit-servant-class-list').innerHTML =
+    list.map(c => `<option value="${String(c.name).replace(/"/g, '&quot;')}"></option>`).join('');
 }
 
 async function saveEditServant() {
@@ -2764,9 +2764,28 @@ async function saveEditServant() {
   const email = document.getElementById('edit-servant-email').value.trim();
   const phone = document.getElementById('edit-servant-phone').value.trim();
   const role = document.getElementById('edit-servant-role').value;
-  const sectorId = document.getElementById('edit-servant-sector').value;
-  const classId = document.getElementById('edit-servant-class').value;
+  let sectorId = document.getElementById('edit-servant-sector').value;
+  const className = document.getElementById('edit-servant-class').value.trim();
   if (!name) { alert('ادخل الاسم'); return; }
+
+  let classId = null;
+  if (className) {
+    // دوّر على فصل بنفس الاسم (يفضّل اللي في نفس القطاع)
+    const sameName = allClasses.filter(c => c.name.trim() === className);
+    let found = sameName.find(c => sectorId && c.sector_id === sectorId) || (!sectorId ? sameName[0] : null);
+    if (found) {
+      classId = found.id;
+      if (!sectorId) sectorId = found.sector_id || '';
+    } else {
+      // مفيش فصل بالاسم ده: لازم قطاع علشان نعمله
+      if (!sectorId) { alert('الفصل ده مش موجود. اختار القطاع الأول علشان يتعمل فصل جديد بالاسم ده'); return; }
+      if (!confirm('الفصل "' + className + '" مش موجود في القطاع ده. تعمله فصل جديد؟')) return;
+      const { data: newCls, error: clsErr } = await sb.from('classes').insert({ name: className, sector_id: sectorId }).select().single();
+      if (clsErr) { alert('تعذر إنشاء الفصل: ' + clsErr.message); return; }
+      allClasses.push(newCls);
+      classId = newCls.id;
+    }
+  }
 
   const { error } = await sb.from('servants').update({
     full_name: name,
@@ -2774,7 +2793,7 @@ async function saveEditServant() {
     phone: phone || null,
     role,
     sector_id: sectorId || null,
-    class_id: classId || null
+    class_id: classId
   }).eq('id', id);
 
   if (error) { alert('حصل خطأ: ' + error.message); return; }
