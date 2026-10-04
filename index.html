@@ -1319,6 +1319,18 @@ function generateQR(elementId, text, size) {
         <option value="priest">كاهن / خادم مسؤول</option>
       </select>
     </div>
+    <div class="form-group">
+      <label>القطاع</label>
+      <select id="edit-servant-sector" onchange="loadEditServantClasses()">
+        <option value="">اختر القطاع</option>
+      </select>
+    </div>
+    <div class="form-group">
+      <label>الفصل</label>
+      <select id="edit-servant-class">
+        <option value="">اختر الفصل</option>
+      </select>
+    </div>
     <div class="form-actions">
       <button class="btn btn-primary" onclick="saveEditServant()">حفظ</button>
       <button class="btn" onclick="hideModal('edit-servant-modal')" style="background:var(--border)">إلغاء</button>
@@ -2666,7 +2678,7 @@ async function loadServants() {
       <td><button class="btn-sm btn-outline" onclick="showServantQR('${s.id}','${s.full_name}','${s.unique_code}')">كيو آر</button></td>
       <td>
         ${s.source === 'servants' ? `
-          <button class="btn-sm btn-warning" onclick="openEditServantModal('${s.id}','${s.full_name}','${s.email||''}','${s.phone||''}','${s.role}')">تعديل</button>
+          <button class="btn-sm btn-warning" onclick="openEditServantModal('${s.id}')">تعديل</button>
           <button class="btn-sm btn-danger" onclick="deleteServant('${s.id}')" style="margin-right:0.25rem">حذف</button>
         ` : `
           <button class="btn-sm btn-warning" onclick="viewStudent('${s.id}')">عرض</button>
@@ -2718,13 +2730,32 @@ async function saveServant() {
   loadServants();
 }
 
-function openEditServantModal(id, name, email, phone, role) {
-  document.getElementById('edit-servant-id').value = id;
-  document.getElementById('edit-servant-name').value = name;
-  document.getElementById('edit-servant-email').value = email;
-  document.getElementById('edit-servant-phone').value = phone;
-  document.getElementById('edit-servant-role').value = role;
+async function openEditServantModal(id) {
+  const { data: s } = await sb.from('servants').select('*').eq('id', id).single();
+  if (!s) { alert('مش لاقي بيانات الخادم'); return; }
+
+  document.getElementById('edit-servant-id').value = s.id;
+  document.getElementById('edit-servant-name').value = s.full_name || '';
+  document.getElementById('edit-servant-email').value = s.email || '';
+  document.getElementById('edit-servant-phone').value = s.phone || '';
+  document.getElementById('edit-servant-role').value = s.role || 'servant';
+
+  const sectorSel = document.getElementById('edit-servant-sector');
+  sectorSel.innerHTML = '<option value="">اختر القطاع</option>' +
+    allSectors.map(sec => `<option value="${sec.id}">${sec.name}</option>`).join('');
+  sectorSel.value = s.sector_id || '';
+
+  loadEditServantClasses(s.class_id || '');
   showModal('edit-servant-modal');
+}
+
+function loadEditServantClasses(selectedClassId = '') {
+  const sectorId = document.getElementById('edit-servant-sector').value;
+  const classSel = document.getElementById('edit-servant-class');
+  const filtered = sectorId ? allClasses.filter(c => c.sector_id === sectorId) : [];
+  classSel.innerHTML = '<option value="">اختر الفصل</option>' +
+    filtered.map(c => `<option value="${c.id}">${c.name}</option>`).join('');
+  if (selectedClassId) classSel.value = selectedClassId;
 }
 
 async function saveEditServant() {
@@ -2733,8 +2764,20 @@ async function saveEditServant() {
   const email = document.getElementById('edit-servant-email').value.trim();
   const phone = document.getElementById('edit-servant-phone').value.trim();
   const role = document.getElementById('edit-servant-role').value;
+  const sectorId = document.getElementById('edit-servant-sector').value;
+  const classId = document.getElementById('edit-servant-class').value;
   if (!name) { alert('ادخل الاسم'); return; }
-  await sb.from('servants').update({ full_name: name, email: email || null, phone: phone || null, role }).eq('id', id);
+
+  const { error } = await sb.from('servants').update({
+    full_name: name,
+    email: email || null,
+    phone: phone || null,
+    role,
+    sector_id: sectorId || null,
+    class_id: classId || null
+  }).eq('id', id);
+
+  if (error) { alert('حصل خطأ: ' + error.message); return; }
   hideModal('edit-servant-modal');
   loadServants();
 }
