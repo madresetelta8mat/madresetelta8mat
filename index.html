@@ -1776,7 +1776,7 @@ function showServantApp() {
 
   // Build nav for servant
   const nav = document.getElementById('main-nav');
-  nav.innerHTML = `<div class="nav-item active" id="nav-servant-home" onclick="showServantPage('servant-dashboard-page','servant-home')">🏠 صفحتي</div><div class="nav-item" id="nav-servant-notifications" onclick="showServantPage('notifications-page','servant-notifications'); loadNotifications(); initSendNotifSection();">🔔 الإشعارات</div>`;
+  nav.innerHTML = `<div class="nav-item active" id="nav-servant-home" onclick="showServantPage('servant-dashboard-page','servant-home')">🏠 صفحتي</div><div class="nav-item" id="nav-servant-notifications" onclick="showServantPage('notifications-page','servant-notifications'); loadNotifications(); initSendNotifSection();">🔔 الإشعارات</div><div class="nav-item" id="nav-servant-approvals" onclick="showServantPage('approvals-page','servant-approvals'); loadApprovals();">✅ الموافقات</div>`;
 
   if (!currentServant?.profile_completed) {
     // Must complete profile first
@@ -1842,7 +1842,7 @@ async function saveServantProfile() {
 
   // Show dashboard
   const nav = document.getElementById('main-nav');
-  nav.innerHTML = `<div class="nav-item active" id="nav-servant-home" onclick="showServantPage('servant-dashboard-page','servant-home')">🏠 صفحتي</div><div class="nav-item" id="nav-servant-notifications" onclick="showServantPage('notifications-page','servant-notifications'); loadNotifications(); initSendNotifSection();">🔔 الإشعارات</div>`;
+  nav.innerHTML = `<div class="nav-item active" id="nav-servant-home" onclick="showServantPage('servant-dashboard-page','servant-home')">🏠 صفحتي</div><div class="nav-item" id="nav-servant-notifications" onclick="showServantPage('notifications-page','servant-notifications'); loadNotifications(); initSendNotifSection();">🔔 الإشعارات</div><div class="nav-item" id="nav-servant-approvals" onclick="showServantPage('approvals-page','servant-approvals'); loadApprovals();">✅ الموافقات</div>`;
   showServantPage('servant-dashboard-page', 'servant-home');
   loadServantDashboard();
 }
@@ -2048,7 +2048,7 @@ function buildNavByRole(role) {
     { id: 'idcards', label: '🪪 البطاقات', page: 'idcards-page', roles: ['admin','priest','sector_leader','system_servant'] },
     { id: 'reports', label: '📊 التقارير', page: 'reports-page', roles: ['admin','priest','sector_leader','servant','system_servant'] },
     { id: 'servants', label: '👨‍💼 الخدام', page: 'servants-page', roles: ['admin','priest'] },
-    { id: 'approvals', label: '✅ الموافقات', page: 'approvals-page', roles: ['admin','priest'] },
+    { id: 'approvals', label: '✅ الموافقات', page: 'approvals-page', roles: ['admin','priest','sector_leader','servant','system_servant'] },
     { id: 'progress', label: '📈 مسار التقدم', page: 'progress-page', roles: ['admin','priest','sector_leader','servant','system_servant'] },
     { id: 'quiz', label: '🤖 بوت المراجعة', page: 'quiz-page', roles: ['admin','priest','sector_leader','servant','student','system_servant'] },
     { id: 'certificate', label: '🏆 الشهادات', page: 'certificate-page', roles: ['admin','priest','sector_leader'] },
@@ -3066,9 +3066,27 @@ async function savePoints() {
 }
 
 // ========== APPROVALS ==========
+// مين بيشوف الطلبات: (بيشتغل لخدام جدول servants وجدول profiles)
+function getApprovalScope() {
+  if (currentServant) {
+    return { role: currentServant.role || 'servant', class_id: currentServant.class_id, sector_id: currentServant.sector_id };
+  }
+  return { role: currentProfile?.role, class_id: currentProfile?.class_id, sector_id: currentProfile?.sector_id };
+}
+
 async function loadApprovals() {
-  const { data = [] } = await sb.from('profiles').select('*, classes(name), sectors(name)').eq('role', 'student').eq('approved', false).order('created_at');
   const listDiv = document.getElementById('approvals-list');
+  const scope = getApprovalScope();
+  let query = sb.from('profiles').select('*, classes(name), sectors(name)').eq('role', 'student').eq('approved', false).order('created_at');
+  if (scope.role === 'servant') {
+    if (!scope.class_id) { listDiv.innerHTML = '<div class="empty"><p>مفيش فصل متسجل لك</p></div>'; return; }
+    query = query.eq('class_id', scope.class_id);
+  } else if (scope.role === 'sector_leader') {
+    if (!scope.sector_id) { listDiv.innerHTML = '<div class="empty"><p>مفيش قطاع متسجل لك</p></div>'; return; }
+    query = query.eq('sector_id', scope.sector_id);
+  }
+  const { data = [], error } = await query;
+  if (error) { listDiv.innerHTML = '<div class="msg msg-error">حصل خطأ: ' + error.message + '</div>'; return; }
   if (!data?.length) { listDiv.innerHTML = '<div class="empty"><div class="empty-icon">✅</div><p>لا يوجد طلبات انتظار</p></div>'; return; }
   listDiv.innerHTML = data.map(s => `
     <div class="pending-card">
@@ -3086,13 +3104,17 @@ async function loadApprovals() {
 }
 
 async function approveStudent(id) {
-  await sb.from('profiles').update({ approved: true }).eq('id', id);
+  const { data, error } = await sb.from('profiles').update({ approved: true }).eq('id', id).select();
+  if (error) { alert('حصل خطأ: ' + error.message); return; }
+  if (!data || !data.length) { alert('الموافقة ما اتحفظتش. غالبًا اتوافق عليه قبل كده من حد تاني، أو صلاحيات Supabase (RLS) بتمنع'); loadApprovals(); return; }
+  addNotification(id, 'student', 'approved', 'تم قبولك ✅', 'أهلاً بيك في مدرسة الطغمات السمائية للشمامسة 💙');
   loadApprovals();
 }
 
 async function rejectStudent(id) {
   if (!confirm('هتحذف الطلب ده؟')) return;
-  await sb.from('profiles').delete().eq('id', id);
+  const { error } = await sb.from('profiles').delete().eq('id', id);
+  if (error) { alert('حصل خطأ: ' + error.message); return; }
   loadApprovals();
 }
 
