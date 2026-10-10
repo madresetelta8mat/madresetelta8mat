@@ -1890,8 +1890,14 @@ function getDistanceMeters(lat1, lng1, lat2, lng2) {
   return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
 }
 
+// الكاهن والمسؤول يسجّلوا حضور أي حد من أي مكان وفي أي وقت (حتى لو الحضور مقفول)
+function canBypassAttendance() {
+  return ['admin', 'priest'].includes(currentProfile?.role);
+}
+
 function checkLocation() {
   return new Promise((resolve) => {
+    if (canBypassAttendance()) { resolve(true); return; }
     if (!navigator.geolocation) { resolve(false); return; }
     navigator.geolocation.getCurrentPosition(
       pos => {
@@ -2500,7 +2506,7 @@ function switchAttTab(tab) {
   // لو الشخص خادم، اظهر زرار تسجيل حضوره
   if (tab === 'servants') {
     const role = currentProfile?.role;
-    const isServant = role === 'servant' || role === 'sector_leader';
+    const isServant = role === 'servant' || role === 'sector_leader' || role === 'priest' || role === 'admin';
     document.getElementById('servant-self-checkin').style.display = isServant ? 'block' : 'none';
   }
 }
@@ -3571,6 +3577,7 @@ async function toggleAttendance() {
 }
 
 async function checkAttendanceOpen() {
+  if (canBypassAttendance()) return true;
   const { data = null } = await sb.from('attendance_settings').select('is_open').maybeSingle();
   return data?.is_open || false;
 }
