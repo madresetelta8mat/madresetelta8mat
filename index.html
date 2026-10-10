@@ -568,7 +568,7 @@ function generateQR(elementId, text, size) {
           <button id="att-toggle-btn" onclick="toggleAttendance()" class="btn" style="width:auto; padding:0.6rem 1.5rem; font-size:0.95rem">...</button>
         </div>
       </div>
-      <div class="tabs">
+      <div class="tabs" id="att-tabs">
         <button class="tab active" onclick="switchAttTab('students')">المخدومين</button>
         <button class="tab" onclick="switchAttTab('servants')">الخدام</button>
       </div>
@@ -606,7 +606,7 @@ function generateQR(elementId, text, size) {
             <div id="att-students-list"><div class="loading">اختر القطاع والفصل</div></div>
           </div>
         </div>
-        <div class="card" style="margin-top:1rem">
+        <div class="card" id="att-history-card" style="margin-top:1rem">
           <div class="card-title">📊 سجل حضور المخدومين</div>
           <div class="filters">
             <input type="date" id="att-date-filter" onchange="loadAttHistory()">
@@ -2053,7 +2053,8 @@ function buildNavByRole(role) {
     { id: 'quiz', label: '🤖 بوت المراجعة', page: 'quiz-page', roles: ['admin','priest','sector_leader','servant','student','system_servant'] },
     { id: 'certificate', label: '🏆 الشهادات', page: 'certificate-page', roles: ['admin','priest','sector_leader'] },
   ];
-  buildNav(allPages.filter(p => p.roles.includes(role)).map(p => p.id), allPages);
+  const isAssistant = role === 'student' && currentProfile?.is_assistant === true;
+  buildNav(allPages.filter(p => p.roles.includes(role) || (isAssistant && p.id === 'attendance')).map(p => p.id), allPages);
 }
 
 function buildNav(ids, allPages) {
@@ -2081,12 +2082,37 @@ function showPage(pageId, navId) {
   if (pageId === 'servants-page') loadServants();
   if (pageId === 'visits-page') loadVisits();
   if (pageId === 'tasks-page') loadTasks();
-  if (pageId === 'attendance-page') { loadAttStudents(); loadServantAttList(); loadAttendanceControl(); }
+  if (pageId === 'attendance-page') {
+    if (isAssistantUser()) { applyAssistantAttendanceMode(); loadAttStudents(); }
+    else { loadAttStudents(); loadServantAttList(); loadAttendanceControl(); }
+  }
   if (pageId === 'notifications-page') { loadNotifications(); initSendNotifSection(); }
   if (pageId === 'approvals-page') loadApprovals();
   if (pageId === 'progress-page') { populateProgressFilters(); loadProgressPage(); }
   if (pageId === 'quiz-page') initQuizPage();
   if (pageId === 'certificate-page') loadCertificatePage();
+}
+
+// ========== ASSISTANT (مساعد: يأخد الغياب بس) ==========
+function isAssistantUser() {
+  return currentProfile?.role === 'student' && currentProfile?.is_assistant === true;
+}
+
+function applyAssistantAttendanceMode() {
+  // المساعد يشوف تسجيل حضور المخدومين بس
+  const hide = id => { const el = document.getElementById(id); if (el) el.style.display = 'none'; };
+  hide('att-tabs'); hide('att-servants'); hide('att-control-section'); hide('att-history-card');
+  const st = document.getElementById('att-students'); if (st) st.style.display = 'block';
+}
+
+async function toggleAssistant(studentId, makeAssistant) {
+  const msg = makeAssistant ? 'هتخلي الشخص ده مساعد؟ هيقدر ياخد الغياب بس.' : 'هتشيل صلاحية المساعد من الشخص ده؟';
+  if (!confirm(msg)) return;
+  const { data, error } = await sb.from('profiles').update({ is_assistant: makeAssistant }).eq('id', studentId).select();
+  if (error) { alert('حصل خطأ: ' + error.message + '\n(اتأكد إنك شغلت أمر SQL بتاع عمود is_assistant)'); return; }
+  if (!data || !data.length) { alert('التعديل ما اتحفظش. غالبًا صلاحيات Supabase (RLS)'); return; }
+  alert(makeAssistant ? '✅ تم تعيينه مساعد' : '✅ تم إلغاء المساعد');
+  loadStudentDetail(studentId);
 }
 
 function goBack() {
@@ -2228,7 +2254,7 @@ function renderStudents(students) {
   if (!students.length) { tbody.innerHTML = '<tr><td colspan="6"><div class="empty"><div class="empty-icon">👦</div><p>لا يوجد مخدومين</p></div></td></tr>'; return; }
   tbody.innerHTML = students.map(s => `
     <tr>
-      <td><strong>${s.full_name}</strong></td>
+      <td><strong>${s.full_name}</strong>${s.is_assistant ? ' <span class="badge badge-primary">مساعد</span>' : ''}</td>
       <td><span class="badge badge-primary">${s.unique_code}</span></td>
       <td>${s.classes?.name || '-'}</td>
       <td>${s.phone || '-'}</td>
@@ -2290,6 +2316,7 @@ async function loadStudentDetail(studentId) {
         <span class="badge badge-info">${s.classes?.name || ''}</span> 
         <span class="badge badge-primary">${s.sectors?.name || ''}</span>
         <span class="badge ${s.role === 'student' ? 'badge-warning' : 'badge-success'}">${getRoleLabel(s.role) || 'مخدوم'}</span>
+        ${s.is_assistant ? '<span class="badge badge-primary">🧑‍🏫 مساعد</span>' : ''}
       </div>
       <div style="margin-top:0.75rem; display:flex; gap:0.5rem; flex-wrap:wrap">
         <select id="change-role-select" style="padding:0.4rem 0.6rem; border:1px solid var(--border); border-radius:6px; font-family:inherit; font-size:0.85rem">
@@ -2300,6 +2327,7 @@ async function loadStudentDetail(studentId) {
           <option value="priest" ${s.role === 'priest' ? 'selected' : ''}>كاهن / مسؤول</option>
         </select>
         <button class="btn-sm btn-success" onclick="changeStudentRole('${s.id}')">تغيير الدور</button>
+        ${['admin','priest'].includes(currentProfile?.role) && s.role === 'student' ? `<button class="btn-sm ${s.is_assistant ? 'btn-danger' : 'btn-warning'}" onclick="toggleAssistant('${s.id}', ${!s.is_assistant})">${s.is_assistant ? 'إلغاء المساعد' : '🧑‍🏫 تعيين كمساعد'}</button>` : ''}
       </div>
     </div>
   `;
