@@ -2084,7 +2084,12 @@ function showPage(pageId, navId) {
   if (pageId === 'tasks-page') loadTasks();
   if (pageId === 'attendance-page') {
     if (isAssistantUser()) { applyAssistantAttendanceMode(); loadAttStudents(); }
-    else { loadAttStudents(); loadServantAttList(); loadAttendanceControl(); }
+    else {
+      const t = new Date().toISOString().split('T')[0];
+      const sd = document.getElementById('servant-att-date'); if (sd && !sd.value) sd.value = t;
+      const ad = document.getElementById('att-date-filter'); if (ad && !ad.value) ad.value = t;
+      loadAttStudents(); loadServantAttList(); loadAttendanceControl(); loadServantAttHistory(); loadAttHistory();
+    }
   }
   if (pageId === 'notifications-page') { loadNotifications(); initSendNotifSection(); }
   if (pageId === 'approvals-page') loadApprovals();
@@ -2634,26 +2639,45 @@ async function markManualAtt(personId, personType, classId) {
   else loadServantAttList();
 }
 
+// كل الخدام: اللي في جدول servants + اللي سجلوا بنفسهم (جدول profiles بدور خادم/مسؤول قطاع/كاهن)
+async function fetchAllServants(sectorId = '', classId = '') {
+  let q1 = sb.from('servants').select('*, classes(name), sectors(name)').order('full_name');
+  let q2 = sb.from('profiles').select('*, classes(name), sectors(name)').in('role', ['servant','sector_leader','priest']).order('full_name');
+  if (sectorId) { q1 = q1.eq('sector_id', sectorId); q2 = q2.eq('sector_id', sectorId); }
+  if (classId) { q1 = q1.eq('class_id', classId); q2 = q2.eq('class_id', classId); }
+  const [r1, r2] = await Promise.all([q1, q2]);
+  const seen = new Set();
+  const merged = [];
+  [...(r1.data || []), ...(r2.data || [])].forEach(x => {
+    if (!seen.has(x.id)) { seen.add(x.id); merged.push(x); }
+  });
+  return merged.sort((x, y) => (x.full_name || '').localeCompare(y.full_name || '', 'ar'));
+}
+
 async function loadServantAttList() {
   const classId = document.getElementById('servant-att-class-filter').value;
-  let query = sb.from('servants').select('*, classes(name)').order('full_name');
-  if (classId) query = query.eq('class_id', classId);
-  const { data: servants = [] } = await query;
+  const servants = await fetchAllServants('', classId);
   const listDiv = document.getElementById('servants-att-list');
   if (!servants?.length) { listDiv.innerHTML = '<div class="empty"><p>لا يوجد خدام</p></div>'; return; }
 
   const today = new Date().toISOString().split('T')[0];
   const { data: todayAtt = [] } = await sb.from('attendance').select('person_id').eq('person_type', 'servant').gte('attended_at', today + 'T00:00:00');
-  const presentIds = new Set(todayAtt?.map(a => a.person_id) || []);
+  const presentIds = new Set((todayAtt || []).map(a => a.person_id));
+  const presentCount = servants.filter(s => presentIds.has(s.id)).length;
 
   listDiv.innerHTML = `
+    <div class="att-summary">
+      <span class="att-chip att-present">حضر: ${presentCount}</span>
+      <span class="att-chip att-absent">غائب: ${servants.length - presentCount}</span>
+    </div>
     <div class="table-wrap"><table>
-      <thead><tr><th>الاسم</th><th>الحالة</th><th></th></tr></thead>
+      <thead><tr><th>الاسم</th><th>الفصل</th><th>الحالة</th><th></th></tr></thead>
       <tbody>${servants.map(s => `
         <tr>
           <td>${s.full_name}</td>
+          <td>${s.classes?.name || '-'}</td>
           <td>${presentIds.has(s.id) ? '<span class="badge badge-success">حضر</span>' : '<span class="badge badge-danger">غائب</span>'}</td>
-          <td>${!presentIds.has(s.id) ? `<button class="btn-sm btn-success" onclick="markManualAtt('${s.id}','servant','${s.class_id}')">تسجيل حضور</button>` : ''}</td>
+          <td>${!presentIds.has(s.id) ? `<button class="btn-sm btn-success" onclick="markManualAtt('${s.id}','servant','${s.class_id || ''}')">تسجيل حضور</button>` : ''}</td>
         </tr>
       `).join('')}</tbody>
     </table></div>
@@ -2683,16 +2707,31 @@ async function loadAttHistory() {
 async function loadServantAttHistory() {
   const date = document.getElementById('servant-att-date').value;
   if (!date) return;
-  const { data = [] } = await sb.from('attendance').select('*, servants(full_name, classes(name))').eq('person_type', 'servant').gte('attended_at', date + 'T00:00:00').lte('attended_at', date + 'T23:59:59').order('attended_at', { ascending: false });
+  const { data: rows = [] } = await sb.from('attendance').select('*').eq('person_type', 'servant').gte('attended_at', date + 'T00:00:00').lte('attended_at', date + 'T23:59:59').order('attended_at', { ascending: false });
+  const all = await fetchAllServants();
+  const byId = new Map(all.map(s => [s.id, s]));
+  const presentIds = new Set((rows || []).map(r => r.person_id));
+  const absent = all.filter(s => !presentIds.has(s.id));
+
   const tbody = document.getElementById('servant-att-history');
-  tbody.innerHTML = data?.length ? data.map(a => `
-    <tr>
-      <td>${a.servants?.full_name || '-'}</td>
-      <td>${a.servants?.classes?.name || '-'}</td>
+  const presentHtml = (rows || []).map(a => {
+    const sv = byId.get(a.person_id);
+    return `<tr>
+      <td>${sv?.full_name || '-'}</td>
+      <td>${sv?.classes?.name || '-'}</td>
       <td>${new Date(a.attended_at).toLocaleTimeString('ar-EG')}</td>
       <td><span class="badge badge-info">${a.method === 'qr' ? 'كيو آر' : 'يدوي'}</span></td>
-    </tr>
-  `).join('') : '<tr><td colspan="4"><div class="empty"><p>لا يوجد حضور</p></div></td></tr>';
+    </tr>`;
+  }).join('');
+  const absentHtml = absent.map(sv => `<tr>
+      <td>${sv.full_name}</td>
+      <td>${sv.classes?.name || '-'}</td>
+      <td colspan="2"><span class="badge badge-danger">غائب</span></td>
+    </tr>`).join('');
+
+  tbody.innerHTML = `
+    <tr><td colspan="4"><div class="att-summary" style="margin:0.25rem 0"><span class="att-chip att-present">حضر: ${presentIds.size}</span><span class="att-chip att-absent">غائب: ${absent.length}</span></div></td></tr>
+    ${presentHtml}${absentHtml}` || '<tr><td colspan="4"><div class="empty"><p>لا يوجد خدام</p></div></td></tr>';
 }
 
 // ========== SERVANTS ==========
@@ -3844,10 +3883,7 @@ async function generateServantsWeeklyReport() {
   const dateLabel = new Date(date).toLocaleDateString('ar-EG', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
 
   // جيب كل الخدام (مع فلتر القطاع/الفصل لو محدد)
-  let servantsQuery = sb.from('servants').select('*, sectors(name), classes(name)').order('full_name');
-  if (sectorId) servantsQuery = servantsQuery.eq('sector_id', sectorId);
-  if (classId) servantsQuery = servantsQuery.eq('class_id', classId);
-  const { data: servants = [] } = await servantsQuery;
+  const servants = await fetchAllServants(sectorId, classId);
 
   // جيب حضور الخدام في اليوم ده
   const { data: attRaw = [] } = await sb.from('attendance')
@@ -3938,10 +3974,7 @@ async function generateServantsReport() {
   const monthLabel = new Date(startDate).toLocaleDateString('ar-EG', { year: 'numeric', month: 'long' });
 
   // جيب كل الخدام (مع فلتر القطاع/الفصل لو محدد)
-  let servantsQuery = sb.from('servants').select('*, sectors(name), classes(name)').order('full_name');
-  if (sectorId) servantsQuery = servantsQuery.eq('sector_id', sectorId);
-  if (classId) servantsQuery = servantsQuery.eq('class_id', classId);
-  const { data: servants = [] } = await servantsQuery;
+  const servants = await fetchAllServants(sectorId, classId);
 
   // جيب حضور الخدام في الشهر ده
   const { data: attRaw = [] } = await sb.from('attendance')
@@ -4054,10 +4087,7 @@ async function generateServantsAnnualReport() {
   const endDate = `${year}-12-31`;
 
   // جيب كل الخدام (مع فلتر القطاع/الفصل لو محدد)
-  let servantsQuery = sb.from('servants').select('*, sectors(name), classes(name)').order('full_name');
-  if (sectorId) servantsQuery = servantsQuery.eq('sector_id', sectorId);
-  if (classId) servantsQuery = servantsQuery.eq('class_id', classId);
-  const { data: servants = [] } = await servantsQuery;
+  const servants = await fetchAllServants(sectorId, classId);
 
   // جيب حضور الخدام في السنة دي
   const { data: attRaw = [] } = await sb.from('attendance')
