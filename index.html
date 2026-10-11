@@ -1667,7 +1667,17 @@ async function register() {
     data: { full_name: name }
   }});
 
-  if (error) { showAuthMsg(error.message, 'error'); return; }
+  if (error) { showAuthMsg(authErrorText(error), 'error'); return; }
+
+  // لو الإيميل مسجّل قبل كده، Supabase ساعات بيرجع مستخدم من غير هوية (من غير ما يطلع خطأ)
+  if (data.user && Array.isArray(data.user.identities) && data.user.identities.length === 0) {
+    showAuthMsg('⚠️ الإيميل ده مسجّل قبل كده. جرب تسجّل دخول أو اضغط "نسيت كلمة السر"', 'error'); return;
+  }
+
+  // من غير session يعني Supabase مطلوب منه تأكيد الإيميل، وبالتالي بياناتك مش هتتحفظ
+  if (!data.session) {
+    showAuthMsg('⚠️ الحساب اتعمل بس لازم تأكد إيميلك الأول (افتح الإيميل واضغط على اللينك)، وبعدين سجّل دخول. لو الإيميل مجاش كلّم المسؤول.', 'error'); return;
+  }
 
   const userId = data.user.id;
   let photoUrl = null;
@@ -1680,7 +1690,7 @@ async function register() {
     if (!uploadErr) {
       const { data: urlData } = sb.storage.from('student-files').getPublicUrl(path);
       photoUrl = urlData.publicUrl;
-    }
+    } else { console.error('photo upload failed', uploadErr); }
   }
 
   if (certFile) {
@@ -1693,7 +1703,7 @@ async function register() {
     }
   }
 
-  await sb.from('profiles').insert({
+  const { error: profErr } = await sb.from('profiles').insert({
     id: userId,
     full_name: name,
     birth_date: birth || null,
@@ -1710,6 +1720,12 @@ async function register() {
     email,
     approved: false
   });
+
+  if (profErr) {
+    console.error('profile insert failed', profErr);
+    showAuthMsg('❌ الحساب اتعمل بس بياناتك ما اتحفظتش: ' + profErr.message + '. صوّر الرسالة دي وابعتها للمسؤول.', 'error');
+    return;
+  }
 
   showAuthMsg(`✅ تم التسجيل بنجاح! كودك هو: ${code} - في انتظار موافقة المسؤول`, 'success');
 }
@@ -1731,7 +1747,7 @@ async function login() {
   if (!email || !password) { showAuthMsg('ادخل الإيميل وكلمة المرور', 'error'); return; }
 
   const { data, error } = await sb.auth.signInWithPassword({ email, password });
-  if (error) { showAuthMsg('بيانات خاطئة', 'error'); return; }
+  if (error) { showAuthMsg(authErrorText(error), 'error'); return; }
   currentUser = data.user;
   await loadUserProfile();
 }
@@ -1741,6 +1757,18 @@ async function logout() {
   currentUser = null; currentProfile = null; currentServant = null;
   document.getElementById('app').style.display = 'none';
   document.getElementById('auth-screen').style.display = 'flex';
+}
+
+function authErrorText(err) {
+  const m = (err?.message || '').toLowerCase();
+  if (m.includes('email not confirmed')) return '⚠️ لازم تأكد إيميلك الأول: افتح الإيميل واضغط على لينك التأكيد، وبعدين سجّل دخول';
+  if (m.includes('invalid login credentials')) return '❌ الإيميل أو كلمة المرور غلط';
+  if (m.includes('already registered') || m.includes('already been registered')) return '⚠️ الإيميل ده مسجّل قبل كده. جرب تسجّل دخول أو اضغط "نسيت كلمة السر"';
+  if (m.includes('rate limit') || m.includes('too many') || err?.status === 429) return '⏳ محاولات كتير في وقت قصير. استنى شوية وجرب تاني';
+  if (m.includes('password')) return '⚠️ كلمة المرور ضعيفة، لازم ٦ أحرف على الأقل';
+  if (m.includes('invalid email') || m.includes('unable to validate email')) return '⚠️ الإيميل مكتوب غلط';
+  if (m.includes('failed to fetch') || m.includes('network')) return '📶 مشكلة في الإنترنت، جرب تاني';
+  return '❌ ' + (err?.message || 'حصل خطأ غير معروف');
 }
 
 function showAuthMsg(msg, type) {
@@ -1761,6 +1789,14 @@ async function loadUserProfile() {
     }
   }
   
+  if (!profile) {
+    await sb.auth.signOut();
+    currentUser = null;
+    document.getElementById('auth-screen').style.display = 'flex';
+    showAuthMsg('⚠️ حسابك موجود بس بياناتك مش مكتملة (التسجيل ما خلصش). كلّم المسؤول عشان يمسح الحساب ده وتسجّل من جديد.', 'error');
+    return;
+  }
+
   currentProfile = profile;
   showApp();
 }
@@ -2549,38 +2585,59 @@ async function servantSelfCheckin() {
   loadServantAttList();
 }
 
-async function recordStudentAttByCode() {
-  const code = document.getElementById('qr-student-input').value.trim().toUpperCase();
+// ينضّف الكود الممسوح: لو لينك (زي كيو آر الخادم) بياخد الكود اللي جواه، ويشيل المسافات ويكبّر الحروف
+function normalizeScannedCode(raw) {
+  let c = (raw || '').trim();
+  try {
+    const u = new URL(c);
+    c = u.searchParams.get('servant_checkin') || u.searchParams.get('code') || c;
+  } catch (e) {}
+  return c.trim().toUpperCase();
+}
+
+// تسجيل حضور بالكود: بيدوّر في المخدومين (وأي حد دوره خادم/كاهن اتسجل بنفسه) وبعدين في جدول الخدام
+async function recordAttendanceByCode(rawCode, resultDiv) {
+  const code = normalizeScannedCode(rawCode);
   if (!code) return;
-  const resultDiv = document.getElementById('qr-scan-result');
 
   const attOpen = await checkAttendanceOpen();
   if (!attOpen) { resultDiv.innerHTML = '<div class="msg msg-error">🔒 الحضور مقفول دلوقتي</div>'; return; }
 
-  const { data: student = null } = await sb.from('profiles').select('*').eq('unique_code', code).eq('role', 'student').single();
-  if (!student) { resultDiv.innerHTML = '<div class="msg msg-error">كود غير صحيح!</div>'; return; }
+  let person = null, type = null;
+  const { data: prof, error: profErr } = await sb.from('profiles').select('*').eq('unique_code', code).limit(1);
+  if (profErr) { resultDiv.innerHTML = '<div class="msg msg-error">❌ خطأ في البحث: ' + profErr.message + '</div>'; return; }
+  if (prof && prof.length) {
+    person = prof[0];
+    type = person.role === 'student' ? 'student' : 'servant';
+  } else {
+    const { data: sv } = await sb.from('servants').select('*').eq('unique_code', code).limit(1);
+    if (sv && sv.length) { person = sv[0]; type = 'servant'; }
+  }
+  if (!person) { resultDiv.innerHTML = `<div class="msg msg-error">❌ كود غير صحيح أو مش موجود: <strong dir="ltr">${code}</strong></div>`; return; }
 
-  await sb.from('attendance').insert({ person_id: student.id, person_type: 'student', class_id: student.class_id, method: 'qr' });
-  addNotification(student.id, 'student', 'attendance_welcome', 'تم تسجيل حضورك ✅', 'تعالى علطول عشان بنحبك جدا ❤️❤️');
-  resultDiv.innerHTML = `<div class="msg msg-success">✅ تم تسجيل حضور: ${student.full_name}</div>`;
-  document.getElementById('qr-student-input').value = '';
+  // لو اتسجل النهارده قبل كده
+  const today = new Date().toISOString().split('T')[0];
+  const { data: existing } = await sb.from('attendance').select('id').eq('person_id', person.id).eq('person_type', type).gte('attended_at', today + 'T00:00:00').limit(1);
+  if (existing && existing.length) { resultDiv.innerHTML = `<div class="msg msg-info">ℹ️ ${person.full_name} اتسجل حضوره النهارده قبل كده</div>`; return; }
+
+  const { error: insErr } = await sb.from('attendance').insert({ person_id: person.id, person_type: type, class_id: person.class_id, method: 'qr' });
+  if (insErr) { resultDiv.innerHTML = '<div class="msg msg-error">❌ ما اتسجلش الحضور: ' + insErr.message + '</div>'; return; }
+
+  addNotification(person.id, type, 'attendance_welcome', 'تم تسجيل حضورك ✅',
+    type === 'student' ? 'تعالى علطول عشان بنحبك جدا ❤️❤️' : 'وجودك فرق معانا جدا تعيش وتخدم❤️❤️❤️');
+  resultDiv.innerHTML = `<div class="msg msg-success">✅ تم تسجيل حضور: ${person.full_name}</div>`;
+}
+
+async function recordStudentAttByCode() {
+  const input = document.getElementById('qr-student-input');
+  await recordAttendanceByCode(input.value, document.getElementById('qr-scan-result'));
+  input.value = '';
 }
 
 async function recordServantAttByCode() {
-  const code = document.getElementById('qr-servant-input').value.trim();
-  if (!code) return;
-  const resultDiv = document.getElementById('qr-servant-result');
-
-  const attOpen = await checkAttendanceOpen();
-  if (!attOpen) { resultDiv.innerHTML = '<div class="msg msg-error">🔒 الحضور مقفول دلوقتي</div>'; return; }
-
-  const { data: servant = null } = await sb.from('servants').select('*').eq('unique_code', code).single();
-  if (!servant) { resultDiv.innerHTML = '<div class="msg msg-error">كود غير صحيح!</div>'; return; }
-
-  await sb.from('attendance').insert({ person_id: servant.id, person_type: 'servant', class_id: servant.class_id, method: 'qr' });
-  addNotification(servant.id, 'servant', 'attendance_welcome', 'تم تسجيل حضورك ✅', 'وجودك فرق معانا جدا تعيش وتخدم❤️❤️❤️');
-  resultDiv.innerHTML = `<div class="msg msg-success">✅ تم تسجيل حضور: ${servant.full_name}</div>`;
-  document.getElementById('qr-servant-input').value = '';
+  const input = document.getElementById('qr-servant-input');
+  await recordAttendanceByCode(input.value, document.getElementById('qr-servant-result'));
+  input.value = '';
 }
 
 async function loadAttStudents() {
@@ -3266,7 +3323,7 @@ function renderServantIdCards(servants) {
   });
 
   grid.innerHTML = html;
-  servants.forEach(s => { if (s.unique_code) generateQR(`srvqr-${s.id}`, s.unique_code, 70); });
+  servants.forEach(s => { if (s.unique_code) generateQR(`srvqr-${s.id}`, s.unique_code, 96); });
 }
 
 // ========== ID CARDS ==========
@@ -3343,7 +3400,7 @@ function renderIdCards(students) {
   });
 
   grid.innerHTML = html;
-  students.forEach(s => generateQR(`idqr-${s.id}`, s.unique_code, 70));
+  students.forEach(s => generateQR(`idqr-${s.id}`, s.unique_code, 96));
 }
 
 function printIdCards() {
