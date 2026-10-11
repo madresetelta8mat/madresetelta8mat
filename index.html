@@ -1038,6 +1038,18 @@ function generateQR(elementId, text, size) {
       </div>
     </div>
 
+    <!-- CLASSES MANAGEMENT -->
+    <div id="classes-page" class="page">
+      <div class="page-title">🏫 إدارة الفصول والقطاعات</div>
+      <div class="card" style="margin-bottom:1.5rem">
+        <div class="card-title">📂 القطاعات</div>
+        <button class="btn btn-primary" onclick="openSectorModal()" style="width:auto; padding:0.5rem 1.25rem; margin-bottom:1rem">+ قطاع جديد</button>
+        <div id="sectors-list"></div>
+      </div>
+      <button class="btn btn-primary" onclick="openClassModal()" style="width:auto; padding:0.6rem 1.5rem; margin-bottom:1rem">+ فصل جديد</button>
+      <div id="classes-list"><div class="loading">جاري التحميل...</div></div>
+    </div>
+
     <!-- PENDING APPROVALS (admin) -->
     <div id="approvals-page" class="page">
       <div class="page-title">طلبات الموافقة</div>
@@ -1399,6 +1411,50 @@ function generateQR(elementId, text, size) {
     <p id="servant-qr-code" style="text-align:center; color:var(--text-muted); font-size:0.85rem"></p>
     <div style="text-align:center; margin-top:1rem">
       <button class="btn btn-primary" onclick="printServantQR()">🖨️ طباعة</button>
+    </div>
+  </div>
+
+  <!-- SECTOR MODAL -->
+  <div class="modal" id="sector-modal" style="display:none">
+    <div class="modal-title">
+      <span id="sector-modal-title">قطاع جديد</span>
+      <button class="modal-close" onclick="hideModal('sector-modal')">×</button>
+    </div>
+    <input type="hidden" id="sector-edit-id">
+    <div class="form-group">
+      <label>اسم القطاع</label>
+      <input type="text" id="sector-name-input" placeholder="مثال: قطاع الرسل">
+    </div>
+    <div id="sector-modal-msg"></div>
+    <div class="form-actions">
+      <button class="btn btn-primary" onclick="saveSector()">حفظ</button>
+      <button class="btn" onclick="hideModal('sector-modal')" style="background:var(--border)">إلغاء</button>
+    </div>
+  </div>
+
+  <!-- CLASS MODAL -->
+  <div class="modal" id="class-modal" style="display:none">
+    <div class="modal-title">
+      <span id="class-modal-title">فصل جديد</span>
+      <button class="modal-close" onclick="hideModal('class-modal')">×</button>
+    </div>
+    <input type="hidden" id="class-edit-id">
+    <div class="form-group">
+      <label>اسم الفصل</label>
+      <input type="text" id="class-name-input" placeholder="مثال: الأولى والثانية">
+    </div>
+    <div class="form-group">
+      <label>القطاع</label>
+      <select id="class-sector-input"></select>
+    </div>
+    <div class="form-group">
+      <label>المرحلة (بتحدد لون بطاقة الهوية)</label>
+      <select id="class-grade-input"></select>
+    </div>
+    <div id="class-modal-msg"></div>
+    <div class="form-actions">
+      <button class="btn btn-primary" onclick="saveClass()">حفظ</button>
+      <button class="btn" onclick="hideModal('class-modal')" style="background:var(--border)">إلغاء</button>
     </div>
   </div>
 
@@ -2091,6 +2147,7 @@ function buildNavByRole(role) {
     { id: 'reports', label: '📊 التقارير', page: 'reports-page', roles: ['admin','priest','sector_leader','servant','system_servant'] },
     { id: 'servants', label: '👨‍💼 الخدام', page: 'servants-page', roles: ['admin','priest'] },
     { id: 'approvals', label: '✅ الموافقات', page: 'approvals-page', roles: ['admin','priest','sector_leader','servant','system_servant'] },
+    { id: 'classes', label: '🏫 الفصول والقطاعات', page: 'classes-page', roles: ['admin','priest'] },
     { id: 'progress', label: '📈 مسار التقدم', page: 'progress-page', roles: ['admin','priest','sector_leader','servant','system_servant'] },
     { id: 'quiz', label: '🤖 بوت المراجعة', page: 'quiz-page', roles: ['admin','priest','sector_leader','servant','student','system_servant'] },
     { id: 'certificate', label: '🏆 الشهادات', page: 'certificate-page', roles: ['admin','priest','sector_leader'] },
@@ -2135,6 +2192,7 @@ function showPage(pageId, navId) {
   }
   if (pageId === 'notifications-page') { loadNotifications(); initSendNotifSection(); }
   if (pageId === 'approvals-page') loadApprovals();
+  if (pageId === 'classes-page') loadClassesPage();
   if (pageId === 'progress-page') { populateProgressFilters(); loadProgressPage(); }
   if (pageId === 'quiz-page') initQuizPage();
   if (pageId === 'certificate-page') loadCertificatePage();
@@ -3218,6 +3276,181 @@ async function rejectStudent(id) {
   const { error } = await sb.from('profiles').delete().eq('id', id);
   if (error) { alert('حصل خطأ: ' + error.message); return; }
   loadApprovals();
+}
+
+// ========== CLASSES MANAGEMENT ==========
+const GRADE_LEVEL_OPTIONS = ['حضانة', 'أولى وثانية', 'ثالثة ورابعة', 'خامسة وسادسة', 'إعدادي', 'ثانوي', 'أمهات / فيبي'];
+
+async function loadClassesPage() {
+  const listDiv = document.getElementById('classes-list');
+  await loadAllClasses();
+  await loadSectors();
+  renderSectorsList();
+  const [{ data: studs = [] }, { data: servs = [] }, { data: staff = [] }] = await Promise.all([
+    sb.from('profiles').select('class_id').eq('role', 'student'),
+    sb.from('servants').select('class_id'),
+    sb.from('profiles').select('class_id').in('role', ['servant', 'sector_leader', 'priest'])
+  ]);
+  const studCount = {}, servCount = {};
+  (studs || []).forEach(x => { if (x.class_id) studCount[x.class_id] = (studCount[x.class_id] || 0) + 1; });
+  [...(servs || []), ...(staff || [])].forEach(x => { if (x.class_id) servCount[x.class_id] = (servCount[x.class_id] || 0) + 1; });
+
+  if (!allClasses.length) { listDiv.innerHTML = '<div class="empty"><div class="empty-icon">🏫</div><p>لا توجد فصول. دوس "فصل جديد"</p></div>'; return; }
+
+  const bySector = {};
+  allClasses.forEach(c => {
+    const name = c.sectors?.name || 'بدون قطاع';
+    (bySector[name] = bySector[name] || []).push(c);
+  });
+
+  listDiv.innerHTML = Object.entries(bySector).map(([sectorName, classes]) => `
+    <div class="card" style="margin-bottom:1rem">
+      <div class="card-title">${sectorName} (${classes.length} فصل)</div>
+      ${classes.map(c => `
+        <div class="task-card" style="margin-bottom:0.5rem">
+          <div>
+            <div style="font-weight:700">${c.name}</div>
+            <div style="font-size:0.8rem; color:var(--text-muted); margin-top:0.2rem">
+              ${c.grade_level ? '🎓 ' + c.grade_level + ' · ' : ''}👦 ${studCount[c.id] || 0} مخدوم · 👨‍💼 ${servCount[c.id] || 0} خادم
+            </div>
+          </div>
+          <div style="display:flex; gap:0.5rem">
+            <button class="btn-sm btn-warning" onclick="openClassModal('${c.id}')">تعديل</button>
+            <button class="btn-sm btn-danger" onclick="deleteClass('${c.id}')">حذف</button>
+          </div>
+        </div>
+      `).join('')}
+    </div>
+  `).join('');
+}
+
+function renderSectorsList() {
+  const div = document.getElementById('sectors-list');
+  if (!div) return;
+  if (!allSectors.length) { div.innerHTML = '<p style="color:var(--text-muted)">لا توجد قطاعات. دوس "قطاع جديد"</p>'; return; }
+  div.innerHTML = allSectors.map(sec => {
+    const n = allClasses.filter(c => c.sector_id === sec.id).length;
+    return `
+      <div class="task-card" style="margin-bottom:0.5rem">
+        <div>
+          <div style="font-weight:700">${sec.name}</div>
+          <div style="font-size:0.8rem; color:var(--text-muted); margin-top:0.2rem">${n} فصل</div>
+        </div>
+        <div style="display:flex; gap:0.5rem">
+          <button class="btn-sm btn-warning" onclick="openSectorModal('${sec.id}')">تعديل</button>
+          <button class="btn-sm btn-danger" onclick="deleteSector('${sec.id}')">حذف</button>
+        </div>
+      </div>`;
+  }).join('');
+}
+
+function openSectorModal(id = null) {
+  const sec = id ? allSectors.find(x => x.id === id) : null;
+  document.getElementById('sector-modal-title').textContent = sec ? 'تعديل القطاع' : 'قطاع جديد';
+  document.getElementById('sector-edit-id').value = sec ? sec.id : '';
+  document.getElementById('sector-name-input').value = sec ? sec.name : '';
+  document.getElementById('sector-modal-msg').innerHTML = '';
+  showModal('sector-modal');
+}
+
+async function saveSector() {
+  const id = document.getElementById('sector-edit-id').value;
+  const name = document.getElementById('sector-name-input').value.trim();
+  const msg = document.getElementById('sector-modal-msg');
+  if (!name) { msg.innerHTML = '<div class="msg msg-error">اكتب اسم القطاع</div>'; return; }
+  if (allSectors.some(x => x.id !== id && x.name.trim() === name)) {
+    msg.innerHTML = '<div class="msg msg-error">فيه قطاع بنفس الاسم</div>'; return;
+  }
+  let res;
+  if (id) res = await sb.from('sectors').update({ name }).eq('id', id).select();
+  else res = await sb.from('sectors').insert({ name }).select();
+  if (res.error) { msg.innerHTML = '<div class="msg msg-error">حصل خطأ: ' + res.error.message + '</div>'; return; }
+  if (!res.data || !res.data.length) { msg.innerHTML = '<div class="msg msg-error">ما اتحفظش. غالبًا صلاحيات Supabase (RLS) بتمنع التعديل على جدول sectors</div>'; return; }
+  hideModal('sector-modal');
+  await loadSectors();
+  await populateClassDropdowns();
+  loadClassesPage();
+}
+
+async function deleteSector(id) {
+  const sec = allSectors.find(x => x.id === id);
+  if (!sec) return;
+  const nClasses = allClasses.filter(c => c.sector_id === id).length;
+  if (nClasses > 0) { alert(`القطاع "${sec.name}" فيه ${nClasses} فصل. احذف الفصول أو انقلها لقطاع تاني الأول.`); return; }
+  const [{ count: sc }, { count: sv }] = await Promise.all([
+    sb.from('profiles').select('id', { count: 'exact', head: true }).eq('sector_id', id),
+    sb.from('servants').select('id', { count: 'exact', head: true }).eq('sector_id', id)
+  ]);
+  if ((sc || 0) + (sv || 0) > 0) { alert(`القطاع "${sec.name}" لسه مربوط بـ ${(sc || 0) + (sv || 0)} شخص. انقلهم لقطاع تاني الأول.`); return; }
+  if (!confirm(`هتحذف قطاع "${sec.name}"؟`)) return;
+  const { error } = await sb.from('sectors').delete().eq('id', id);
+  if (error) { alert('ما اتحذفش: ' + error.message); return; }
+  await loadSectors();
+  await populateClassDropdowns();
+  loadClassesPage();
+}
+
+function openClassModal(id = null) {
+  const cls = id ? allClasses.find(c => c.id === id) : null;
+  document.getElementById('class-modal-title').textContent = cls ? 'تعديل الفصل' : 'فصل جديد';
+  document.getElementById('class-edit-id').value = cls ? cls.id : '';
+  document.getElementById('class-name-input').value = cls ? cls.name : '';
+  document.getElementById('class-modal-msg').innerHTML = '';
+
+  document.getElementById('class-sector-input').innerHTML = '<option value="">اختر القطاع</option>' +
+    allSectors.map(sec => `<option value="${sec.id}">${sec.name}</option>`).join('');
+  document.getElementById('class-sector-input').value = cls?.sector_id || '';
+
+  const grades = [...GRADE_LEVEL_OPTIONS];
+  if (cls?.grade_level && !grades.includes(cls.grade_level)) grades.push(cls.grade_level);
+  document.getElementById('class-grade-input').innerHTML = '<option value="">غير محدد</option>' +
+    grades.map(g => `<option value="${g}">${g}</option>`).join('');
+  document.getElementById('class-grade-input').value = cls?.grade_level || '';
+
+  showModal('class-modal');
+}
+
+async function saveClass() {
+  const id = document.getElementById('class-edit-id').value;
+  const name = document.getElementById('class-name-input').value.trim();
+  const sectorId = document.getElementById('class-sector-input').value;
+  const grade = document.getElementById('class-grade-input').value;
+  const msg = document.getElementById('class-modal-msg');
+
+  if (!name) { msg.innerHTML = '<div class="msg msg-error">اكتب اسم الفصل</div>'; return; }
+  if (!sectorId) { msg.innerHTML = '<div class="msg msg-error">اختار القطاع</div>'; return; }
+  if (allClasses.some(c => c.id !== id && c.sector_id === sectorId && c.name.trim() === name)) {
+    msg.innerHTML = '<div class="msg msg-error">فيه فصل بنفس الاسم في القطاع ده</div>'; return;
+  }
+
+  const payload = { name, sector_id: sectorId, grade_level: grade || null };
+  let res;
+  if (id) res = await sb.from('classes').update(payload).eq('id', id).select();
+  else res = await sb.from('classes').insert(payload).select();
+
+  if (res.error) { msg.innerHTML = '<div class="msg msg-error">حصل خطأ: ' + res.error.message + '</div>'; return; }
+  if (!res.data || !res.data.length) { msg.innerHTML = '<div class="msg msg-error">ما اتحفظش. غالبًا صلاحيات Supabase (RLS) بتمنع التعديل على جدول classes</div>'; return; }
+
+  hideModal('class-modal');
+  await populateClassDropdowns();
+  loadClassesPage();
+}
+
+async function deleteClass(id) {
+  const cls = allClasses.find(c => c.id === id);
+  if (!cls) return;
+  const [{ count: sc }, { count: sv }, { count: st }] = await Promise.all([
+    sb.from('profiles').select('id', { count: 'exact', head: true }).eq('class_id', id),
+    sb.from('servants').select('id', { count: 'exact', head: true }).eq('class_id', id),
+    sb.from('tasks').select('id', { count: 'exact', head: true }).eq('class_id', id)
+  ]);
+  const total = (sc || 0) + (sv || 0);
+  if (total > 0) { alert(`الفصل "${cls.name}" فيه ${total} شخص. انقلهم لفصل تاني الأول وبعدين احذفه.`); return; }
+  if (!confirm(`هتحذف فصل "${cls.name}"؟${st ? '\n(فيه ' + st + ' مهام مربوطة بيه)' : ''}`)) return;
+  const { error } = await sb.from('classes').delete().eq('id', id);
+  if (error) { alert('ما اتحذفش: ' + error.message); return; }
+  await populateClassDropdowns();
+  loadClassesPage();
 }
 
 // ========== MODALS ==========
