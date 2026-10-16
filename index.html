@@ -1711,9 +1711,14 @@ function scopedSectors() {
 }
 function toggleClassFieldForRole(roleSelId, classElId) {
   const isPriest = document.getElementById(roleSelId).value === 'priest';
-  const g = document.getElementById(classElId).closest('.form-group');
-  if (g) g.style.display = isPriest ? 'none' : '';
-  if (isPriest) document.getElementById(classElId).value = '';
+  const sectorElId = classElId.replace('class', 'sector');
+  [classElId, sectorElId].forEach(id => {
+    const el = document.getElementById(id);
+    if (!el) return;
+    const g = el.closest('.form-group');
+    if (g) g.style.display = isPriest ? 'none' : '';
+    if (isPriest) el.value = '';
+  });
 }
 
 
@@ -2648,7 +2653,7 @@ async function changeStudentRole(studentId) {
   const newRole = document.getElementById('change-role-select').value;
   if (!confirm('هتغير دور المخدوم ده؟')) return;
   const upd = { role: newRole };
-  if (newRole === 'priest' || newRole === 'admin') upd.class_id = null;
+  if (newRole === 'priest' || newRole === 'admin') { upd.class_id = null; upd.sector_id = null; }
   await sb.from('profiles').update(upd).eq('id', studentId);
   logActivity('تغيير دور', `${document.querySelector('#detail-header .profile-name')?.textContent || studentId} ← ${getRoleLabel(newRole)}`);
   alert('✅ تم تغيير الدور بنجاح!');
@@ -3200,7 +3205,7 @@ async function saveServant() {
   const email = document.getElementById('servant-email-input').value.trim();
   const phone = document.getElementById('servant-phone-input').value.trim();
   const role = document.getElementById('servant-role-input').value;
-  const sectorId = document.getElementById('servant-sector-input').value;
+  const sectorId = role === 'priest' ? '' : document.getElementById('servant-sector-input').value;
   const classId = role === 'priest' ? '' : document.getElementById('servant-class-input').value;
   if (!name) { alert('ادخل اسم الخادم'); return; }
 
@@ -3264,7 +3269,7 @@ async function saveEditServant() {
   const email = document.getElementById('edit-servant-email').value.trim();
   const phone = document.getElementById('edit-servant-phone').value.trim();
   const role = document.getElementById('edit-servant-role').value;
-  let sectorId = document.getElementById('edit-servant-sector').value;
+  let sectorId = role === 'priest' ? '' : document.getElementById('edit-servant-sector').value;
   const className = role === 'priest' ? '' : document.getElementById('edit-servant-class').value.trim();
   if (!name) { alert('ادخل الاسم'); return; }
 
