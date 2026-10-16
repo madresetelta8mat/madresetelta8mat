@@ -1560,6 +1560,32 @@ function generateQR(elementId, text, size) {
     </div>
   </div>
 
+
+  <!-- DELETE CLASS/SECTOR MODAL (نقل قبل الحذف) -->
+  <div class="modal" id="delete-modal" style="display:none">
+    <div class="modal-title">
+      <span id="delete-modal-title">حذف</span>
+      <button class="modal-close" onclick="hideModal('delete-modal')">×</button>
+    </div>
+    <div id="delete-info" style="margin-bottom:1rem; font-weight:600; color:var(--primary); line-height:1.7"></div>
+    <div id="delete-move-area">
+      <div class="form-group">
+        <label id="delete-target-label">انقلهم إلى</label>
+        <select id="delete-target"></select>
+      </div>
+      <div id="delete-count" style="font-size:0.85rem; color:var(--text-muted); margin-bottom:0.5rem"></div>
+      <div id="delete-list" style="max-height:40vh; overflow:auto; border:1px solid var(--border); border-radius:8px; padding:0.6rem"></div>
+    </div>
+    <div id="delete-empty" class="msg msg-success" style="display:none; margin-top:0.5rem"></div>
+    <div id="delete-modal-msg" style="margin-top:0.75rem"></div>
+    <div class="form-actions" style="flex-wrap:wrap">
+      <button id="delete-move-btn" class="btn btn-primary" onclick="delMove(false)">نقل المحدد</button>
+      <button id="delete-moveall-btn" class="btn btn-warning" onclick="delMove(true)">نقل الكل وحذف</button>
+      <button id="delete-final-btn" class="btn btn-danger" onclick="delFinalDelete(false)">حذف</button>
+      <button class="btn" onclick="hideModal('delete-modal')" style="background:var(--border)">إلغاء</button>
+    </div>
+  </div>
+
   <!-- GIVE POINTS MODAL -->
   <div class="modal" id="points-modal" style="display:none">
     <div class="modal-title">
@@ -3666,25 +3692,6 @@ async function saveSector() {
   loadClassesPage();
 }
 
-async function deleteSector(id) {
-  const sec = allSectors.find(x => x.id === id);
-  if (!sec) return;
-  const nClasses = allClasses.filter(c => c.sector_id === id).length;
-  if (nClasses > 0) { alert(`القطاع "${sec.name}" فيه ${nClasses} فصل. احذف الفصول أو انقلها لقطاع تاني الأول.`); return; }
-  const [{ count: sc }, { count: sv }] = await Promise.all([
-    sb.from('profiles').select('id', { count: 'exact', head: true }).eq('sector_id', id),
-    sb.from('servants').select('id', { count: 'exact', head: true }).eq('sector_id', id)
-  ]);
-  if ((sc || 0) + (sv || 0) > 0) { alert(`القطاع "${sec.name}" لسه مربوط بـ ${(sc || 0) + (sv || 0)} شخص. انقلهم لقطاع تاني الأول.`); return; }
-  if (!confirm(`هتحذف قطاع "${sec.name}"؟`)) return;
-  const { error } = await sb.from('sectors').delete().eq('id', id);
-  if (error) { alert('ما اتحذفش: ' + error.message); return; }
-  logActivity('حذف قطاع', sec.name);
-  await loadSectors();
-  await populateClassDropdowns();
-  loadClassesPage();
-}
-
 function openClassModal(id = null) {
   const cls = id ? allClasses.find(c => c.id === id) : null;
   document.getElementById('class-modal-title').textContent = cls ? 'تعديل الفصل' : 'فصل جديد';
@@ -3732,23 +3739,250 @@ async function saveClass() {
   loadClassesPage();
 }
 
-async function deleteClass(id) {
-  const cls = allClasses.find(c => c.id === id);
-  if (!cls) return;
-  const [{ count: sc }, { count: sv }, { count: st }] = await Promise.all([
-    sb.from('profiles').select('id', { count: 'exact', head: true }).eq('class_id', id),
-    sb.from('servants').select('id', { count: 'exact', head: true }).eq('class_id', id),
-    sb.from('tasks').select('id', { count: 'exact', head: true }).eq('class_id', id)
+// ========== حذف فصل / قطاع (مع نقل اللي جواه الأول) ==========
+let delCtx = null;
+const DEL_GROUP_TITLES = { class: '🏫 الفصول', student: '👦 المخدومين', servant: '👨‍💼 الخدام' };
+
+function delEl(id) { return document.getElementById(id); }
+
+function delTargetOptions() {
+  if (delCtx.type === 'class') {
+    const bySector = {};
+    allClasses.filter(c => c.id !== delCtx.id).forEach(c => {
+      const n = c.sectors?.name || 'بدون قطاع';
+      (bySector[n] = bySector[n] || []).push(c);
+    });
+    return '<option value="">اختر الفصل الجديد</option>' + Object.entries(bySector).map(([sec, cls]) =>
+      `<optgroup label="${escHtml(sec)}">${cls.map(c => `<option value="${c.id}">${escHtml(c.name)}</option>`).join('')}</optgroup>`).join('');
+  }
+  return '<option value="">اختر القطاع الجديد</option>' +
+    allSectors.filter(s => s.id !== delCtx.id).map(s => `<option value="${s.id}">${escHtml(s.name)}</option>`).join('');
+}
+
+function delPersonItem(table, p, group) {
+  const label = getRoleLabel(p.role);
+  let sub = group === 'student' ? (p.approved === false ? 'منتظر موافقة' : '') : (label || 'خادم');
+  return { key: table + ':' + p.id, table, id: p.id, name: p.full_name || '(بدون اسم)', group, sub };
+}
+
+async function delFetchItems() {
+  const { type, id } = delCtx;
+  if (type === 'class') {
+    const [a, b] = await Promise.all([
+      sb.from('profiles').select('id, full_name, role, approved').eq('class_id', id).order('full_name'),
+      sb.from('servants').select('id, full_name, role').eq('class_id', id).order('full_name')
+    ]);
+    if (a.error || b.error) throw new Error((a.error || b.error).message);
+    const items = [];
+    (a.data || []).forEach(p => items.push(delPersonItem('profiles', p, p.role === 'student' ? 'student' : 'servant')));
+    (b.data || []).forEach(s => items.push(delPersonItem('servants', s, 'servant')));
+    return items;
+  }
+  // قطاع: الفصول + أي أشخاص مربوطين بالقطاع مباشرة (زي مسؤول القطاع)
+  await loadAllClasses();
+  const secClasses = allClasses.filter(c => c.sector_id === id);
+  const classIds = secClasses.map(c => c.id);
+  const [a, b] = await Promise.all([
+    sb.from('profiles').select('id, full_name, role, approved, class_id').eq('sector_id', id).order('full_name'),
+    sb.from('servants').select('id, full_name, role, class_id').eq('sector_id', id).order('full_name')
   ]);
-  const total = (sc || 0) + (sv || 0);
-  if (total > 0) { alert(`الفصل "${cls.name}" فيه ${total} شخص. انقلهم لفصل تاني الأول وبعدين احذفه.`); return; }
-  if (!confirm(`هتحذف فصل "${cls.name}"؟${st ? '\n(فيه ' + st + ' مهام مربوطة بيه)' : ''}`)) return;
-  const { error } = await sb.from('classes').delete().eq('id', id);
-  if (error) { alert('ما اتحذفش: ' + error.message); return; }
-  logActivity('حذف فصل', cls.name);
+  if (a.error || b.error) throw new Error((a.error || b.error).message);
+  const all = [...(a.data || []).map(p => ({ ...p, _t: 'profiles' })), ...(b.data || []).map(p => ({ ...p, _t: 'servants' }))];
+  const items = secClasses.map(c => {
+    const mine = all.filter(p => p.class_id === c.id);
+    const st = mine.filter(p => p._t === 'profiles' && p.role === 'student').length;
+    return { key: 'classes:' + c.id, table: 'classes', id: c.id, name: c.name, group: 'class', sub: `👦 ${st} مخدوم · 👨‍💼 ${mine.length - st} خادم` };
+  });
+  all.filter(p => !classIds.includes(p.class_id)).forEach(p =>
+    items.push(delPersonItem(p._t, p, p._t === 'profiles' && p.role === 'student' ? 'student' : 'servant')));
+  return items;
+}
+
+async function openDeleteModal(type, id) {
+  const obj = type === 'class' ? allClasses.find(c => c.id === id) : allSectors.find(s => s.id === id);
+  if (!obj) return;
+  delCtx = { type, id, name: obj.name, items: [], tasks: 0 };
+  delEl('delete-modal-msg').innerHTML = '<div class="msg msg-info">جاري التحميل...</div>';
+  showModal('delete-modal');
+  try {
+    delCtx.items = await delFetchItems();
+    if (type === 'class') {
+      const { count } = await sb.from('tasks').select('id', { count: 'exact', head: true }).eq('class_id', id);
+      delCtx.tasks = count || 0;
+    }
+  } catch (e) {
+    delEl('delete-modal-msg').innerHTML = '<div class="msg msg-error">تعذر تحميل البيانات: ' + escHtml(e.message) + '</div>';
+    return;
+  }
+  delEl('delete-modal-title').textContent = type === 'class' ? `حذف فصل "${obj.name}"` : `حذف قطاع "${obj.name}"`;
+  delEl('delete-target-label').textContent = type === 'class' ? 'انقلهم إلى فصل' : 'انقلهم إلى قطاع';
+  delEl('delete-target').innerHTML = delTargetOptions();
+  delEl('delete-modal-msg').innerHTML = '';
+  delRender();
+}
+
+function delRender() {
+  const items = delCtx.items;
+  const isClass = delCtx.type === 'class';
+  const empty = items.length === 0;
+  delEl('delete-move-area').style.display = empty ? 'none' : '';
+  delEl('delete-move-btn').style.display = empty ? 'none' : '';
+  delEl('delete-moveall-btn').style.display = empty ? 'none' : '';
+  delEl('delete-final-btn').style.display = empty ? '' : 'none';
+  delEl('delete-final-btn').textContent = isClass ? 'حذف الفصل' : 'حذف القطاع';
+  delEl('delete-moveall-btn').textContent = isClass ? 'نقل الكل وحذف الفصل' : 'نقل الكل وحذف القطاع';
+
+  const tasksNote = delCtx.tasks ? ` (فيه ${delCtx.tasks} مهام مربوطة بالفصل)` : '';
+  const emptyBox = delEl('delete-empty');
+  if (empty) {
+    delEl('delete-info').textContent = '';
+    emptyBox.style.display = '';
+    emptyBox.textContent = `✅ ${isClass ? 'الفصل' : 'القطاع'} فاضي دلوقتي وتقدر تحذفه${tasksNote}`;
+  } else {
+    emptyBox.style.display = 'none';
+    delEl('delete-info').textContent = isClass
+      ? `الفصل ده فيه ${items.length} شخص. علّم على اللي عايز تنقلهم واختار الفصل الجديد، وبعد ما الفصل يفضى تقدر تحذفه.${tasksNote}`
+      : `القطاع ده فيه ${items.filter(i => i.group === 'class').length} فصل و${items.filter(i => i.group !== 'class').length} شخص مربوطين بيه. انقلهم لقطاع تاني وبعدين احذفه.`;
+    delEl('delete-list').innerHTML = ['class', 'student', 'servant'].map(g => {
+      const arr = items.filter(i => i.group === g);
+      if (!arr.length) return '';
+      return `<div style="margin-bottom:0.8rem">
+        <label style="display:flex;align-items:center;gap:0.5rem;font-weight:700;color:var(--primary);padding:0.4rem 0;border-bottom:1px solid var(--border);cursor:pointer">
+          <input type="checkbox" id="del-all-${g}" checked onchange="delToggleGroup('${g}', this.checked)">
+          ${DEL_GROUP_TITLES[g]} (${arr.length}) — تحديد الكل
+        </label>
+        ${arr.map(i => `<label style="display:flex;align-items:center;gap:0.5rem;padding:0.4rem 0.2rem;cursor:pointer">
+          <input type="checkbox" class="del-chk" data-key="${escHtml(i.key)}" data-group="${g}" checked onchange="delUpdateCount()">
+          <span style="flex:1">${escHtml(i.name)}</span>
+          <span style="color:var(--text-muted);font-size:0.8rem">${escHtml(i.sub || '')}</span>
+        </label>`).join('')}
+      </div>`;
+    }).join('');
+    delUpdateCount();
+  }
+}
+
+function delToggleGroup(g, on) {
+  document.querySelectorAll(`.del-chk[data-group="${g}"]`).forEach(c => c.checked = on);
+  delUpdateCount();
+}
+
+function delSelected() {
+  const keys = new Set([...document.querySelectorAll('.del-chk:checked')].map(c => c.dataset.key));
+  return delCtx.items.filter(i => keys.has(i.key));
+}
+
+function delUpdateCount() {
+  delEl('delete-count').textContent = `المحدد: ${delSelected().length} من ${delCtx.items.length}`;
+  ['class', 'student', 'servant'].forEach(g => {
+    const all = document.getElementById('del-all-' + g);
+    if (!all) return;
+    const boxes = [...document.querySelectorAll(`.del-chk[data-group="${g}"]`)];
+    all.checked = boxes.length > 0 && boxes.every(b => b.checked);
+  });
+}
+
+async function delUpdateChunks(table, ids, payload, col = 'id') {
+  let done = 0;
+  for (let i = 0; i < ids.length; i += 100) {
+    const { data, error } = await sb.from(table).update(payload).in(col, ids.slice(i, i + 100)).select('id');
+    if (error) throw new Error(error.message);
+    done += data?.length || 0;
+  }
+  return done;
+}
+
+async function delMove(moveAllThenDelete) {
+  const msg = delEl('delete-modal-msg');
+  const targetId = delEl('delete-target').value;
+  const isClass = delCtx.type === 'class';
+  if (!targetId) { msg.innerHTML = `<div class="msg msg-error">اختار ${isClass ? 'الفصل' : 'القطاع'} اللي هتنقلهم له</div>`; return; }
+  const sel = moveAllThenDelete ? delCtx.items : delSelected();
+  if (!sel.length) { msg.innerHTML = '<div class="msg msg-error">علّم على واحد على الأقل</div>'; return; }
+
+  const targetName = isClass ? allClasses.find(c => c.id === targetId)?.name : allSectors.find(s => s.id === targetId)?.name;
+  const question = moveAllThenDelete
+    ? `هتنقل ${sel.length} إلى "${targetName}" وبعدين تحذف ${isClass ? 'الفصل' : 'القطاع'} "${delCtx.name}". متأكد؟`
+    : `هتنقل ${sel.length} إلى "${targetName}"؟`;
+  if (!confirm(question)) return;
+
+  msg.innerHTML = '<div class="msg msg-info">جاري النقل...</div>';
+  let moved = 0;
+  try {
+    if (isClass) {
+      const target = allClasses.find(c => c.id === targetId);
+      const payload = { class_id: targetId, sector_id: target.sector_id };
+      for (const table of ['profiles', 'servants']) {
+        const ids = sel.filter(i => i.table === table).map(i => i.id);
+        if (ids.length) moved += await delUpdateChunks(table, ids, payload);
+      }
+    } else {
+      const clsSel = sel.filter(i => i.table === 'classes');
+      if (clsSel.length) {
+        const existing = allClasses.filter(c => c.sector_id === targetId).map(c => c.name.trim());
+        const clash = clsSel.filter(i => existing.includes(i.name.trim()));
+        if (clash.length) {
+          msg.innerHTML = `<div class="msg msg-error">فيه فصول بنفس الاسم في القطاع الجديد: ${clash.map(c => escHtml(c.name)).join('، ')}. غيّر اسمها الأول.</div>`;
+          return;
+        }
+        const ids = clsSel.map(i => i.id);
+        const n = await delUpdateChunks('classes', ids, { sector_id: targetId });
+        if (n !== ids.length) throw new Error('ما اتنقلتش كل الفصول. غالبًا صلاحيات Supabase (RLS)');
+        moved += n;
+        // الأشخاص اللي في الفصول دي ينتقلوا مع القطاع الجديد
+        for (const table of ['profiles', 'servants']) await delUpdateChunks(table, ids, { sector_id: targetId }, 'class_id');
+      }
+      for (const table of ['profiles', 'servants']) {
+        const ids = sel.filter(i => i.table === table).map(i => i.id);
+        if (ids.length) moved += await delUpdateChunks(table, ids, { sector_id: targetId });
+      }
+    }
+  } catch (e) {
+    msg.innerHTML = '<div class="msg msg-error">حصل خطأ: ' + escHtml(e.message) + '</div>';
+    return;
+  }
+  if (!moved) { msg.innerHTML = '<div class="msg msg-error">ما اتنقلش حد. غالبًا صلاحيات Supabase (RLS)</div>'; return; }
+
+  logActivity(isClass ? 'نقل أعضاء قبل حذف فصل' : 'نقل فصول/أعضاء قبل حذف قطاع', `${moved} ← ${targetName} (من ${delCtx.name})`);
+  try {
+    await loadAllClasses();
+    if (!isClass) await loadSectors();
+    delCtx.items = await delFetchItems();
+  } catch (e) {
+    msg.innerHTML = '<div class="msg msg-error">اتنقلوا لكن تعذر تحديث القايمة: ' + escHtml(e.message) + '</div>';
+    return;
+  }
+  delRender();
+  if (!delCtx.items.length) {
+    if (moveAllThenDelete) { await delFinalDelete(true); return; }
+    msg.innerHTML = `<div class="msg msg-success">✅ تم نقل ${moved} إلى "${escHtml(targetName)}"</div>`;
+  } else {
+    msg.innerHTML = `<div class="msg msg-success">✅ تم نقل ${moved} إلى "${escHtml(targetName)}". لسه فاضل ${delCtx.items.length}.</div>`;
+  }
+}
+
+async function delFinalDelete(skipConfirm) {
+  if (!delCtx || delCtx.items.length) return;
+  const msg = delEl('delete-modal-msg');
+  const isClass = delCtx.type === 'class';
+  const what = isClass ? 'فصل' : 'قطاع';
+  if (!skipConfirm) {
+    const note = isClass && delCtx.tasks ? `\n(فيه ${delCtx.tasks} مهام مربوطة بيه)` : '';
+    if (!confirm(`هتحذف ${what} "${delCtx.name}" نهائيًا؟${note}`)) return;
+  }
+  const { data, error } = await sb.from(isClass ? 'classes' : 'sectors').delete().eq('id', delCtx.id).select('id');
+  if (error) { msg.innerHTML = '<div class="msg msg-error">ما اتحذفش: ' + escHtml(error.message) + '</div>'; return; }
+  if (!data || !data.length) { msg.innerHTML = '<div class="msg msg-error">ما اتحذفش. غالبًا صلاحيات Supabase (RLS) بتمنع الحذف</div>'; return; }
+  logActivity('حذف ' + what, delCtx.name);
+  hideModal('delete-modal');
+  delCtx = null;
+  await loadSectors();
   await populateClassDropdowns();
   loadClassesPage();
 }
+
+function deleteSector(id) { return openDeleteModal('sector', id); }
+function deleteClass(id) { return openDeleteModal('class', id); }
 
 // ========== أدوات واتساب والمواليد ==========
 function phoneToWa(phone) {
