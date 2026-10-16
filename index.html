@@ -3774,8 +3774,9 @@ async function delFetchItems() {
     ]);
     if (a.error || b.error) throw new Error((a.error || b.error).message);
     const items = [];
-    (a.data || []).forEach(p => items.push(delPersonItem('profiles', p, p.role === 'student' ? 'student' : 'servant')));
-    (b.data || []).forEach(s => items.push(delPersonItem('servants', s, 'servant')));
+    // خدام النظام (السكرتارية) مش بيتحطوا في فصول، فمش بيظهروا في القايمة
+    (a.data || []).filter(p => p.role !== 'system_servant').forEach(p => items.push(delPersonItem('profiles', p, p.role === 'student' ? 'student' : 'servant')));
+    (b.data || []).filter(s => s.role !== 'system_servant').forEach(s => items.push(delPersonItem('servants', s, 'servant')));
     return items;
   }
   // قطاع: الفصول + أي أشخاص مربوطين بالقطاع مباشرة (زي مسؤول القطاع)
@@ -3787,7 +3788,7 @@ async function delFetchItems() {
     sb.from('servants').select('id, full_name, role, class_id').eq('sector_id', id).order('full_name')
   ]);
   if (a.error || b.error) throw new Error((a.error || b.error).message);
-  const all = [...(a.data || []).map(p => ({ ...p, _t: 'profiles' })), ...(b.data || []).map(p => ({ ...p, _t: 'servants' }))];
+  const all = [...(a.data || []).map(p => ({ ...p, _t: 'profiles' })), ...(b.data || []).map(p => ({ ...p, _t: 'servants' }))].filter(p => p.role !== 'system_servant');
   const items = secClasses.map(c => {
     const mine = all.filter(p => p.class_id === c.id);
     const st = mine.filter(p => p._t === 'profiles' && p.role === 'student').length;
@@ -3969,6 +3970,13 @@ async function delFinalDelete(skipConfirm) {
   if (!skipConfirm) {
     const note = isClass && delCtx.tasks ? `\n(فيه ${delCtx.tasks} مهام مربوطة بيه)` : '';
     if (!confirm(`هتحذف ${what} "${delCtx.name}" نهائيًا؟${note}`)) return;
+  }
+  // لو فيه خادم نظام مربوط بالفصل/القطاع بالغلط، نفك ربطه عشان ما يمنعش الحذف
+  const col = isClass ? 'class_id' : 'sector_id';
+  const detach = isClass ? { class_id: null } : { sector_id: null, class_id: null };
+  for (const table of ['profiles', 'servants']) {
+    const r = await sb.from(table).update(detach).eq('role', 'system_servant').eq(col, delCtx.id);
+    if (r.error) { msg.innerHTML = '<div class="msg msg-error">تعذر فك ربط خدام النظام: ' + escHtml(r.error.message) + '</div>'; return; }
   }
   const { data, error } = await sb.from(isClass ? 'classes' : 'sectors').delete().eq('id', delCtx.id).select('id');
   if (error) { msg.innerHTML = '<div class="msg msg-error">ما اتحذفش: ' + escHtml(error.message) + '</div>'; return; }
