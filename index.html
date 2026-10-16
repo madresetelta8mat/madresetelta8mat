@@ -1577,13 +1577,6 @@ function generateQR(elementId, text, size) {
       <div id="delete-list" style="max-height:40vh; overflow:auto; border:1px solid var(--border); border-radius:8px; padding:0.6rem"></div>
     </div>
     <div id="delete-empty" class="msg msg-success" style="display:none; margin-top:0.5rem"></div>
-    <div id="delete-history-area" style="display:none; margin-top:0.75rem">
-      <div id="delete-history-info" style="font-size:0.85rem; color:var(--text-muted); margin-bottom:0.5rem; line-height:1.7"></div>
-      <div class="form-group">
-        <label>سجلات الحضور والمهام القديمة تروح فين؟</label>
-        <select id="delete-history-target"></select>
-      </div>
-    </div>
     <div id="delete-modal-msg" style="margin-top:0.75rem"></div>
     <div class="form-actions" style="flex-wrap:wrap">
       <button id="delete-move-btn" class="btn btn-primary" onclick="delMove(false)">نقل المحدد</button>
@@ -3815,12 +3808,7 @@ async function openDeleteModal(type, id) {
   try {
     delCtx.items = await delFetchItems();
     if (type === 'class') {
-      const [t, a] = await Promise.all([
-        sb.from('tasks').select('id', { count: 'exact', head: true }).eq('class_id', id),
-        sb.from('attendance').select('id', { count: 'exact', head: true }).eq('class_id', id)
-      ]);
-      delCtx.tasks = t.count || 0;
-      delCtx.att = a.count || 0;
+      delCtx.tasks = 0;
     }
   } catch (e) {
     delEl('delete-modal-msg').innerHTML = '<div class="msg msg-error">تعذر تحميل البيانات: ' + escHtml(e.message) + '</div>';
@@ -3844,18 +3832,7 @@ function delRender() {
   delEl('delete-final-btn').textContent = isClass ? 'حذف الفصل' : 'حذف القطاع';
   delEl('delete-moveall-btn').textContent = isClass ? 'نقل الكل وحذف الفصل' : 'نقل الكل وحذف القطاع';
 
-  const tasksNote = delCtx.tasks ? ` (فيه ${delCtx.tasks} مهام مربوطة بالفصل)` : '';
-  const histArea = delEl('delete-history-area');
-  if (empty && isClass && (delCtx.att || delCtx.tasks)) {
-    const keep = delEl('delete-history-target').value;
-    histArea.style.display = '';
-    delEl('delete-history-info').textContent = `الفصل ده عليه ${delCtx.att} سجل حضور و${delCtx.tasks} مهمة قديمة. لازم تتحول قبل الحذف.`;
-    delEl('delete-history-target').innerHTML = '<option value="">من غير فصل (الحضور يفضل محفوظ، والمهام تبقى لكل الفصول)</option>' +
-      allClasses.filter(c => c.id !== delCtx.id).map(c => `<option value="${c.id}">انقلها إلى: ${escHtml(c.name)}</option>`).join('');
-    delEl('delete-history-target').value = keep || '';
-  } else {
-    histArea.style.display = 'none';
-  }
+  const tasksNote = '';
   const emptyBox = delEl('delete-empty');
   if (empty) {
     delEl('delete-info').textContent = '';
@@ -3978,7 +3955,6 @@ async function delMove(moveAllThenDelete) {
   delRender();
   if (!delCtx.items.length) {
     if (moveAllThenDelete) {
-      if (isClass && (delCtx.att || delCtx.tasks)) delEl('delete-history-target').value = targetId;
       await delFinalDelete(true);
       return;
     }
@@ -3988,34 +3964,60 @@ async function delMove(moveAllThenDelete) {
   }
 }
 
+const DEL_FIX_SQL = `DO $$
+DECLARE r record;
+BEGIN
+  FOR r IN
+    SELECT con.conname, con.conrelid::regclass AS tbl, att.attname AS col
+    FROM pg_constraint con
+    JOIN pg_attribute att ON att.attrelid = con.conrelid AND att.attnum = con.conkey[1]
+    WHERE con.contype = 'f' AND con.confrelid = 'public.classes'::regclass AND array_length(con.conkey, 1) = 1
+  LOOP
+    EXECUTE format('ALTER TABLE %s ALTER COLUMN %I DROP NOT NULL', r.tbl, r.col);
+    EXECUTE format('ALTER TABLE %s DROP CONSTRAINT %I', r.tbl, r.conname);
+    EXECUTE format('ALTER TABLE %s ADD CONSTRAINT %I FOREIGN KEY (%I) REFERENCES public.classes(id) ON DELETE SET NULL', r.tbl, r.conname, r.col);
+  END LOOP;
+END $$;`;
+
+function delCopyFixSql() {
+  const ta = document.getElementById('del-fix-sql');
+  if (!ta) return;
+  ta.select();
+  try { navigator.clipboard.writeText(ta.value); } catch (e) { document.execCommand('copy'); }
+  alert('اتنسخ ✅ الصقه في Supabase ← SQL Editor ← Run');
+}
+
 async function delFinalDelete(skipConfirm) {
   if (!delCtx || delCtx.items.length) return;
   const msg = delEl('delete-modal-msg');
   const isClass = delCtx.type === 'class';
   const what = isClass ? 'فصل' : 'قطاع';
-  if (!skipConfirm) {
-    const note = isClass && delCtx.tasks ? `\n(فيه ${delCtx.tasks} مهام مربوطة بيه)` : '';
-    if (!confirm(`هتحذف ${what} "${delCtx.name}" نهائيًا؟${note}`)) return;
-  }
-  // لو فيه خادم نظام مربوط بالفصل/القطاع بالغلط، نفك ربطه عشان ما يمنعش الحذف
+  if (!skipConfirm && !confirm(`هتحذف ${what} "${delCtx.name}" نهائيًا؟`)) return;
+
+  // لو فيه خادم نظام (سكرتارية) مربوط بالفصل/القطاع بالغلط، نفك ربطه عشان ما يمنعش الحذف
   const col = isClass ? 'class_id' : 'sector_id';
   const detach = isClass ? { class_id: null } : { sector_id: null, class_id: null };
   for (const table of ['profiles', 'servants']) {
-    const r = await sb.from(table).update(detach).eq('role', 'system_servant').eq(col, delCtx.id);
-    if (r.error) { msg.innerHTML = '<div class="msg msg-error">تعذر فك ربط خدام النظام: ' + escHtml(r.error.message) + '</div>'; return; }
+    await sb.from(table).update(detach).eq('role', 'system_servant').eq(col, delCtx.id);
   }
-  if (isClass && (delCtx.att || delCtx.tasks)) {
-    const hist = delEl('delete-history-target').value || null;
-    for (const table of ['attendance', 'tasks']) {
-      const r = await sb.from(table).update({ class_id: hist }).eq('class_id', delCtx.id);
-      if (r.error) { msg.innerHTML = '<div class="msg msg-error">تعذر تحويل سجلات ' + (table === 'attendance' ? 'الحضور' : 'المهام') + ': ' + escHtml(r.error.message) + '</div>'; return; }
-    }
+  // سجلات الحضور والمهام القديمة: نفك ربطها من الفصل (لو الصلاحيات سمحت)
+  if (isClass) {
+    await sb.from('attendance').update({ class_id: null }).eq('class_id', delCtx.id);
+    await sb.from('tasks').update({ class_id: null }).eq('class_id', delCtx.id);
   }
+
   const { data, error } = await sb.from(isClass ? 'classes' : 'sectors').delete().eq('id', delCtx.id).select('id');
   if (error) {
-    const t = /on table "([^"]+)"/.exec(error.message);
-    const hint = t ? `فيه بيانات في جدول "${escHtml(t[1])}" لسه مربوطة بيه.` : '';
-    msg.innerHTML = '<div class="msg msg-error">ما اتحذفش. ' + hint + '<br><small>' + escHtml(error.message) + '</small></div>';
+    if (/foreign key/i.test(error.message)) {
+      msg.innerHTML = `<div class="msg msg-error" style="text-align:right;line-height:1.8">
+        ما اتحذفش لأن فيه بيانات قديمة (زي سجلات الحضور) لسه مربوطة بالفصل، وقاعدة البيانات بتمنع الحذف.<br>
+        <b>الحل لمرة واحدة بس:</b> انسخ الكود ده وشغّله في Supabase ← SQL Editor ← Run، وبعدها أي فصل هيتحذف عادي.
+        <textarea id="del-fix-sql" readonly style="width:100%;height:90px;margin-top:0.5rem;direction:ltr;font-size:0.75rem">${escHtml(DEL_FIX_SQL)}</textarea>
+        <button class="btn-sm btn-primary" style="margin-top:0.5rem" onclick="delCopyFixSql()">📋 نسخ الكود</button>
+      </div>`;
+    } else {
+      msg.innerHTML = '<div class="msg msg-error">ما اتحذفش: ' + escHtml(error.message) + '</div>';
+    }
     return;
   }
   if (!data || !data.length) { msg.innerHTML = '<div class="msg msg-error">ما اتحذفش. غالبًا صلاحيات Supabase (RLS) بتمنع الحذف</div>'; return; }
