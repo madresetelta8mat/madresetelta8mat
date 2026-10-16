@@ -1577,6 +1577,13 @@ function generateQR(elementId, text, size) {
       <div id="delete-list" style="max-height:40vh; overflow:auto; border:1px solid var(--border); border-radius:8px; padding:0.6rem"></div>
     </div>
     <div id="delete-empty" class="msg msg-success" style="display:none; margin-top:0.5rem"></div>
+    <div id="delete-history-area" style="display:none; margin-top:0.75rem">
+      <div id="delete-history-info" style="font-size:0.85rem; color:var(--text-muted); margin-bottom:0.5rem; line-height:1.7"></div>
+      <div class="form-group">
+        <label>سجلات الحضور والمهام القديمة تروح فين؟</label>
+        <select id="delete-history-target"></select>
+      </div>
+    </div>
     <div id="delete-modal-msg" style="margin-top:0.75rem"></div>
     <div class="form-actions" style="flex-wrap:wrap">
       <button id="delete-move-btn" class="btn btn-primary" onclick="delMove(false)">نقل المحدد</button>
@@ -3802,14 +3809,18 @@ async function delFetchItems() {
 async function openDeleteModal(type, id) {
   const obj = type === 'class' ? allClasses.find(c => c.id === id) : allSectors.find(s => s.id === id);
   if (!obj) return;
-  delCtx = { type, id, name: obj.name, items: [], tasks: 0 };
+  delCtx = { type, id, name: obj.name, items: [], tasks: 0, att: 0 };
   delEl('delete-modal-msg').innerHTML = '<div class="msg msg-info">جاري التحميل...</div>';
   showModal('delete-modal');
   try {
     delCtx.items = await delFetchItems();
     if (type === 'class') {
-      const { count } = await sb.from('tasks').select('id', { count: 'exact', head: true }).eq('class_id', id);
-      delCtx.tasks = count || 0;
+      const [t, a] = await Promise.all([
+        sb.from('tasks').select('id', { count: 'exact', head: true }).eq('class_id', id),
+        sb.from('attendance').select('id', { count: 'exact', head: true }).eq('class_id', id)
+      ]);
+      delCtx.tasks = t.count || 0;
+      delCtx.att = a.count || 0;
     }
   } catch (e) {
     delEl('delete-modal-msg').innerHTML = '<div class="msg msg-error">تعذر تحميل البيانات: ' + escHtml(e.message) + '</div>';
@@ -3834,6 +3845,17 @@ function delRender() {
   delEl('delete-moveall-btn').textContent = isClass ? 'نقل الكل وحذف الفصل' : 'نقل الكل وحذف القطاع';
 
   const tasksNote = delCtx.tasks ? ` (فيه ${delCtx.tasks} مهام مربوطة بالفصل)` : '';
+  const histArea = delEl('delete-history-area');
+  if (empty && isClass && (delCtx.att || delCtx.tasks)) {
+    const keep = delEl('delete-history-target').value;
+    histArea.style.display = '';
+    delEl('delete-history-info').textContent = `الفصل ده عليه ${delCtx.att} سجل حضور و${delCtx.tasks} مهمة قديمة. لازم تتحول قبل الحذف.`;
+    delEl('delete-history-target').innerHTML = '<option value="">من غير فصل (الحضور يفضل محفوظ، والمهام تبقى لكل الفصول)</option>' +
+      allClasses.filter(c => c.id !== delCtx.id).map(c => `<option value="${c.id}">انقلها إلى: ${escHtml(c.name)}</option>`).join('');
+    delEl('delete-history-target').value = keep || '';
+  } else {
+    histArea.style.display = 'none';
+  }
   const emptyBox = delEl('delete-empty');
   if (empty) {
     delEl('delete-info').textContent = '';
@@ -3955,7 +3977,11 @@ async function delMove(moveAllThenDelete) {
   }
   delRender();
   if (!delCtx.items.length) {
-    if (moveAllThenDelete) { await delFinalDelete(true); return; }
+    if (moveAllThenDelete) {
+      if (isClass && (delCtx.att || delCtx.tasks)) delEl('delete-history-target').value = targetId;
+      await delFinalDelete(true);
+      return;
+    }
     msg.innerHTML = `<div class="msg msg-success">✅ تم نقل ${moved} إلى "${escHtml(targetName)}"</div>`;
   } else {
     msg.innerHTML = `<div class="msg msg-success">✅ تم نقل ${moved} إلى "${escHtml(targetName)}". لسه فاضل ${delCtx.items.length}.</div>`;
@@ -3978,8 +4004,20 @@ async function delFinalDelete(skipConfirm) {
     const r = await sb.from(table).update(detach).eq('role', 'system_servant').eq(col, delCtx.id);
     if (r.error) { msg.innerHTML = '<div class="msg msg-error">تعذر فك ربط خدام النظام: ' + escHtml(r.error.message) + '</div>'; return; }
   }
+  if (isClass && (delCtx.att || delCtx.tasks)) {
+    const hist = delEl('delete-history-target').value || null;
+    for (const table of ['attendance', 'tasks']) {
+      const r = await sb.from(table).update({ class_id: hist }).eq('class_id', delCtx.id);
+      if (r.error) { msg.innerHTML = '<div class="msg msg-error">تعذر تحويل سجلات ' + (table === 'attendance' ? 'الحضور' : 'المهام') + ': ' + escHtml(r.error.message) + '</div>'; return; }
+    }
+  }
   const { data, error } = await sb.from(isClass ? 'classes' : 'sectors').delete().eq('id', delCtx.id).select('id');
-  if (error) { msg.innerHTML = '<div class="msg msg-error">ما اتحذفش: ' + escHtml(error.message) + '</div>'; return; }
+  if (error) {
+    const t = /on table "([^"]+)"/.exec(error.message);
+    const hint = t ? `فيه بيانات في جدول "${escHtml(t[1])}" لسه مربوطة بيه.` : '';
+    msg.innerHTML = '<div class="msg msg-error">ما اتحذفش. ' + hint + '<br><small>' + escHtml(error.message) + '</small></div>';
+    return;
+  }
   if (!data || !data.length) { msg.innerHTML = '<div class="msg msg-error">ما اتحذفش. غالبًا صلاحيات Supabase (RLS) بتمنع الحذف</div>'; return; }
   logActivity('حذف ' + what, delCtx.name);
   hideModal('delete-modal');
