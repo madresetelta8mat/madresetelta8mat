@@ -1331,7 +1331,7 @@ function generateQR(elementId, text, size) {
     </div>
     <div class="form-group">
       <label>الدور</label>
-      <select id="servant-role-input">
+      <select id="servant-role-input" onchange="toggleClassFieldForRole('servant-role-input','servant-class-input')">
         <option value="servant">خادم</option>
         <option value="sector_leader">مسؤول قطاع</option>
         <option value="priest">كاهن / خادم مسؤول</option>
@@ -1404,7 +1404,7 @@ function generateQR(elementId, text, size) {
     </div>
     <div class="form-group">
       <label>الدور</label>
-      <select id="edit-servant-role">
+      <select id="edit-servant-role" onchange="toggleClassFieldForRole('edit-servant-role','edit-servant-class')">
         <option value="servant">خادم</option>
         <option value="sector_leader">مسؤول قطاع</option>
         <option value="priest">كاهن / خادم مسؤول</option>
@@ -1675,6 +1675,48 @@ let allSectors = [];
 let currentTaskId = null;
 let currentTaskClassId = null;
 
+// ========== نطاق الرؤية (Scope) ==========
+// admin / priest / system_servant = الكل | sector_leader = قطاعه | servant + المساعد = فصله بس
+function getScope() {
+  const p = currentProfile, s = currentServant;
+  const role = s ? (s.role || 'servant') : p?.role;
+  const classId = s ? s.class_id : p?.class_id;
+  const sectorId = s ? s.sector_id : p?.sector_id;
+  if (!role || ['admin', 'priest', 'system_servant'].includes(role)) return { type: 'all' };
+  if (role === 'sector_leader') return sectorId ? { type: 'sector', sectorId } : { type: 'none' };
+  if (role === 'servant' || (role === 'student' && p?.is_assistant === true))
+    return classId ? { type: 'class', classId, sectorId } : { type: 'none' };
+  return { type: 'all' }; // مخدوم عادي
+}
+function scopeClassIds() { // null = كل الفصول
+  const sc = getScope();
+  if (sc.type === 'all') return null;
+  if (sc.type === 'class') return [sc.classId];
+  if (sc.type === 'sector') return allClasses.filter(c => c.sector_id === sc.sectorId).map(c => c.id);
+  return [];
+}
+function applyScopeToQuery(q, col = 'class_id') {
+  const ids = scopeClassIds();
+  if (!ids) return q;
+  return q.in(col, ids.length ? ids : ['00000000-0000-0000-0000-000000000000']);
+}
+function scopedClasses() {
+  const ids = scopeClassIds();
+  return ids ? allClasses.filter(c => ids.includes(c.id)) : allClasses;
+}
+function scopedSectors() {
+  if (getScope().type === 'all') return allSectors;
+  const ids = new Set(scopedClasses().map(c => c.sector_id));
+  return allSectors.filter(s => ids.has(s.id));
+}
+function toggleClassFieldForRole(roleSelId, classElId) {
+  const isPriest = document.getElementById(roleSelId).value === 'priest';
+  const g = document.getElementById(classElId).closest('.form-group');
+  if (g) g.style.display = isPriest ? 'none' : '';
+  if (isPriest) document.getElementById(classElId).value = '';
+}
+
+
 // ========== INIT ==========
 async function init() {
   // Check for auto servant checkin via QR
@@ -1762,7 +1804,7 @@ function populateSectorDropdowns() {
     const el = document.getElementById(id);
     if (!el) return;
     const firstOpt = id === 'reg-sector' ? '<option value="">اختر القطاع</option>' : '<option value="">كل القطاعات</option>';
-    el.innerHTML = firstOpt + allSectors.map(s => `<option value="${s.id}">${s.name}</option>`).join('');
+    el.innerHTML = firstOpt + (id === 'reg-sector' ? allSectors : scopedSectors()).map(s => `<option value="${s.id}">${s.name}</option>`).join('');
   });
   populateClassDropdowns();
 }
@@ -1774,7 +1816,7 @@ async function populateClassDropdowns() {
     const el = document.getElementById(id);
     if (!el) return;
     const firstOpt = el.id === 'task-class-input' ? '<option value="">كل الفصول</option>' : '<option value="">كل الفصول</option>';
-    el.innerHTML = firstOpt + allClasses.map(c => `<option value="${c.id}">${c.name}</option>`).join('');
+    el.innerHTML = firstOpt + scopedClasses().map(c => `<option value="${c.id}">${c.name}</option>`).join('');
   });
 }
 
@@ -1972,6 +2014,7 @@ async function login() {
 async function logout() {
   await sb.auth.signOut();
   currentUser = null; currentProfile = null; currentServant = null;
+  populateSectorDropdowns();
   document.getElementById('app').style.display = 'none';
   document.getElementById('auth-screen').style.display = 'flex';
 }
@@ -2001,6 +2044,7 @@ async function loadUserProfile() {
     const { data: servant } = await sb.from('servants').select('*, classes(name), sectors(name)').eq('email', currentUser.email).single();
     if (servant) {
       currentServant = servant;
+      await loadAllClasses();
       showServantApp();
       return;
     }
@@ -2015,6 +2059,7 @@ async function loadUserProfile() {
   }
 
   currentProfile = profile;
+  await loadAllClasses();
   showApp();
 }
 
@@ -2024,6 +2069,7 @@ function showServantApp() {
   document.getElementById('app').style.display = 'block';
 
   const name = currentServant?.full_name || 'خادم';
+  populateSectorDropdowns();
   document.getElementById('header-avatar').textContent = name.charAt(0) || '؟';
   document.getElementById('header-sub').textContent = currentServant?.classes?.name || 'خادم';
 
@@ -2266,6 +2312,7 @@ function showApp() {
   document.getElementById('app').style.display = 'block';
 
   const role = currentProfile?.role || 'student';
+  populateSectorDropdowns();
   const name = currentProfile?.full_name || '';
   document.getElementById('header-avatar').textContent = name.charAt(0) || '؟';
 
@@ -2339,6 +2386,8 @@ function showPage(pageId, navId) {
   if (pageId === 'reports-page') {
     const today = todayCairo();
     document.getElementById('report-date').value = today;
+    const annualBtn = document.querySelector('#reports-page .main-report-tabs .tab[onclick*="annual"]');
+    if (annualBtn) annualBtn.style.display = getScope().type === 'all' ? '' : 'none';
   }
   if (pageId === 'students-page') loadStudents();
   if (pageId === 'servants-page') loadServants();
@@ -2413,7 +2462,7 @@ async function loadDashboard() {
   ]);
 
   const today = todayCairo();
-  const { count: attToday } = await sb.from('attendance').select('id', { count: 'exact' }).gte('attended_at', dayStart(today)).lte('attended_at', dayEnd(today));
+  const { count: attToday } = await applyScopeToQuery(sb.from('attendance').select('id', { count: 'exact' }).gte('attended_at', dayStart(today)).lte('attended_at', dayEnd(today)));
 
   document.getElementById('dashboard-stats').innerHTML = `
     <div class="stat-card"><div class="stat-num">${studentsCount || 0}</div><div class="stat-label">المخدومين</div></div>
@@ -2427,7 +2476,7 @@ async function loadDashboard() {
     <div class="info-item" style="margin-top:0.75rem"><div class="info-label">إجمالي الحضور اليوم</div><div class="info-value">${attToday || 0} شخص</div></div>
   `;
 
-  const { data: recentAtt = [] } = await sb.from('attendance').select('*, profiles(full_name)').order('attended_at', { ascending: false }).limit(5);
+  const { data: recentAtt = [] } = await applyScopeToQuery(sb.from('attendance').select('*, profiles(full_name)').order('attended_at', { ascending: false }).limit(5));
   if (recentAtt && recentAtt.length > 0) {
     document.getElementById('recent-activity').innerHTML = recentAtt.map(a => `
       <div style="display:flex; justify-content:space-between; padding:0.5rem 0; border-bottom:1px solid var(--border); font-size:0.9rem">
@@ -2598,7 +2647,9 @@ async function deleteStudent() {
 async function changeStudentRole(studentId) {
   const newRole = document.getElementById('change-role-select').value;
   if (!confirm('هتغير دور المخدوم ده؟')) return;
-  await sb.from('profiles').update({ role: newRole }).eq('id', studentId);
+  const upd = { role: newRole };
+  if (newRole === 'priest' || newRole === 'admin') upd.class_id = null;
+  await sb.from('profiles').update(upd).eq('id', studentId);
   logActivity('تغيير دور', `${document.querySelector('#detail-header .profile-name')?.textContent || studentId} ← ${getRoleLabel(newRole)}`);
   alert('✅ تم تغيير الدور بنجاح!');
   loadStudentDetail(studentId);
@@ -2878,6 +2929,9 @@ async function recordAttendanceByCode(rawCode, resultDiv) {
   }
   if (!person) { resultDiv.innerHTML = `<div class="msg msg-error">❌ كود غير صحيح أو مش موجود: <strong dir="ltr">${code}</strong></div>`; return 'err'; }
 
+  const _qids = scopeClassIds();
+  if (_qids && !_qids.includes(person.class_id)) { resultDiv.innerHTML = '<div class="msg msg-error">❌ ده مش من فصلك</div>'; return 'err'; }
+
   // لو اتسجل النهارده قبل كده
   const today = todayCairo();
   const { data: existing } = await sb.from('attendance').select('id').eq('person_id', person.id).eq('person_type', type).gte('attended_at', dayStart(today)).limit(1);
@@ -2914,6 +2968,7 @@ async function loadAttStudents() {
 
   let query = sb.from('profiles').select('*, classes(name)').eq('role', 'student').eq('approved', true).order('full_name');
 
+  query = applyScopeToQuery(query); // فلترة إجبارية حسب النطاق
   // فلترة إجبارية حسب الدور
   if (role === 'servant' && currentProfile?.class_id) {
     query = query.eq('class_id', currentProfile.class_id);
@@ -2974,6 +3029,10 @@ async function markManualAtt(personId, personType, classId) {
 
 // كل الخدام: اللي في جدول servants + اللي سجلوا بنفسهم (جدول profiles بدور خادم/مسؤول قطاع/كاهن)
 async function fetchAllServants(sectorId = '', classId = '') {
+  const sc = getScope();
+  if (sc.type === 'class') classId = sc.classId;
+  else if (sc.type === 'sector') sectorId = sc.sectorId;
+  else if (sc.type === 'none') return [];
   let q1 = sb.from('servants').select('*, classes(name), sectors(name)').order('full_name');
   let q2 = sb.from('profiles').select('*, classes(name), sectors(name)').in('role', ['servant','sector_leader','priest']).order('full_name');
   if (sectorId) { q1 = q1.eq('sector_id', sectorId); q2 = q2.eq('sector_id', sectorId); }
@@ -3026,6 +3085,7 @@ async function loadAttHistory() {
   let query = sb.from('attendance').select('*, profiles(full_name, classes(name))').eq('person_type', 'student').gte('attended_at', dayStart(date)).lte('attended_at', dayEnd(date)).order('attended_at', { ascending: false });
   if (classId) query = query.eq('class_id', classId);
 
+  query = applyScopeToQuery(query);
   const { data = [] } = await query;
   const tbody = document.getElementById('att-history-tbody');
   tbody.innerHTML = data?.length ? data.map(a => `
@@ -3123,6 +3183,7 @@ function openAddServantModal() {
   document.getElementById('servant-role-input').value = 'servant';
   document.getElementById('servant-sector-input').innerHTML = '<option value="">اختر القطاع</option>' + allSectors.map(s => `<option value="${s.id}">${s.name}</option>`).join('');
   document.getElementById('servant-class-input').innerHTML = '<option value="">اختر الفصل</option>';
+  toggleClassFieldForRole('servant-role-input','servant-class-input');
   showModal('servant-modal');
 }
 
@@ -3140,7 +3201,7 @@ async function saveServant() {
   const phone = document.getElementById('servant-phone-input').value.trim();
   const role = document.getElementById('servant-role-input').value;
   const sectorId = document.getElementById('servant-sector-input').value;
-  const classId = document.getElementById('servant-class-input').value;
+  const classId = role === 'priest' ? '' : document.getElementById('servant-class-input').value;
   if (!name) { alert('ادخل اسم الخادم'); return; }
 
   const code = 'SRV-' + Math.random().toString(36).substring(2, 8).toUpperCase();
@@ -3177,6 +3238,7 @@ async function openEditServantModal(id) {
   loadEditServantClasses();
   const cls = allClasses.find(c => c.id === s.class_id);
   document.getElementById('edit-servant-class').value = cls ? cls.name : '';
+  toggleClassFieldForRole('edit-servant-role','edit-servant-class');
   showModal('edit-servant-modal');
 }
 
@@ -3203,7 +3265,7 @@ async function saveEditServant() {
   const phone = document.getElementById('edit-servant-phone').value.trim();
   const role = document.getElementById('edit-servant-role').value;
   let sectorId = document.getElementById('edit-servant-sector').value;
-  const className = document.getElementById('edit-servant-class').value.trim();
+  const className = role === 'priest' ? '' : document.getElementById('edit-servant-class').value.trim();
   if (!name) { alert('ادخل الاسم'); return; }
 
   let classId = null;
@@ -4105,7 +4167,8 @@ async function loadLeaderboard() {
   const sel = document.getElementById('lb-class-filter');
   if (sel && !isStudent) {
     const names = {};
-    rows.forEach(r => { if (r.class_id) names[r.class_id] = r.class_name; });
+    const _nids = scopeClassIds();
+    rows.forEach(r => { if (r.class_id && (!_nids || _nids.includes(r.class_id))) names[r.class_id] = r.class_name; });
     sel.innerHTML = '<option value="">كل الفصول</option>' + Object.entries(names).sort((a, b) => a[1].localeCompare(b[1], 'ar')).map(([id, n]) => `<option value="${id}">${escHtml(n)}</option>`).join('');
   }
   renderLeaderboard();
@@ -4117,7 +4180,8 @@ function renderLeaderboard() {
   const unit = lbTab === 'points' ? 'نقطة' : 'مرة حضور';
   const isStudent = currentProfile?.role === 'student';
   const cls = document.getElementById('lb-class-filter')?.value;
-  let rows = lbData.filter(r => !cls || r.class_id === cls);
+  const _lids = (isStudent && !isAssistantUser()) ? null : scopeClassIds();
+  let rows = lbData.filter(r => (!cls || r.class_id === cls) && (!_lids || _lids.includes(r.class_id)));
   rows = rows.filter(r => Number(r[key]) > 0).sort((a, b) => Number(b[key]) - Number(a[key]));
   if (!rows.length) { box.innerHTML = '<div class="empty"><div class="empty-icon">🏅</div><p>لسه مفيش بيانات</p></div>'; return; }
 
@@ -4430,6 +4494,12 @@ async function findStudentForExam() {
     document.getElementById('exam-student-card').style.display = 'none';
     return;
   }
+  const _scopeIds = scopeClassIds();
+  if (_scopeIds && !_scopeIds.includes(student.class_id)) {
+    document.getElementById('exam-result-msg').innerHTML = '<div class="msg msg-error">❌ المخدوم ده مش من فصلك</div>';
+    document.getElementById('exam-student-card').style.display = 'none';
+    return;
+  }
   currentExamStudent = student;
   document.getElementById('exam-result-msg').innerHTML = '';
   document.getElementById('exam-student-card').style.display = 'block';
@@ -4492,11 +4562,13 @@ async function loadExamResults() {
   const classId = document.getElementById('exam-class-filter')?.value;
   const subjectId = document.getElementById('exam-subject-filter')?.value;
 
-  let query = sb.from('exams').select('*, profiles(id, full_name, classes(name)), subjects(name)').order('exam_date', { ascending: false });
+  let query = sb.from('exams').select('*, profiles(id, full_name, class_id, classes(name)), subjects(name)').order('exam_date', { ascending: false });
   if (subjectId) query = query.eq('subject_id', subjectId);
 
   const { data = [] } = await query;
   let results = data || [];
+  const _eids = scopeClassIds();
+  if (_eids) results = results.filter(e => _eids.includes(e.profiles?.class_id));
   if (classId) results = results.filter(e => allClasses.find(c => c.id === classId)?.name === e.profiles?.classes?.name);
 
   // جمّع حسب الطالب
@@ -5960,7 +6032,8 @@ async function loadProgressPage() {
   if (classId) query = query.eq('class_id', classId);
 
   const { data: students = [] } = await query;
-  let filtered = students || [];
+  const _sid = scopeClassIds();
+  let filtered = (students || []).filter(s => !_sid || _sid.includes(s.class_id));
   if (search) filtered = filtered.filter(s => s.full_name.toLowerCase().includes(search));
 
   if (!filtered.length) { container.innerHTML = '<div class="empty"><div class="empty-icon">📈</div><p>لا يوجد مخدومين</p></div>'; return; }
