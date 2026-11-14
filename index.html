@@ -6881,60 +6881,17 @@ document.addEventListener('DOMContentLoaded', () => {
 init();
 
 // ========== PWA ==========
-// إنشاء manifest.json ديناميكياً
+// الـ manifest بقى ملف حقيقي /manifest.json مربوط في الـ head — مفيش Blob
 (function() {
-  const manifest = {
-    name: 'مدرسة الطغمات السمائية للشمامسة',
-    short_name: 'مدرسة الطغمات',
-    description: 'نظام إدارة مدرسة الطغمات السمائية للشمامسة',
-    start_url: '/',
-    display: 'standalone',
-    background_color: '#ffffff',
-    theme_color: '#1a3c6b',
-    lang: 'ar',
-    dir: 'rtl',
-    orientation: 'portrait',
-    icons: [
-      { src: SCHOOL_LOGO, sizes: '192x192', type: 'image/png', purpose: 'any maskable' },
-      { src: SCHOOL_LOGO, sizes: '512x512', type: 'image/png', purpose: 'any maskable' }
-    ]
-  };
-  const blob = new Blob([JSON.stringify(manifest)], { type: 'application/json' });
-  const url = URL.createObjectURL(blob);
-  const link = document.querySelector('link[rel="manifest"]');
-  if (link) link.href = url;
-
   // تعيين الأيقونة من اللوجو
   ['link[rel="icon"]', 'link[rel="apple-touch-icon"]'].forEach(sel => {
     document.querySelectorAll(sel).forEach(el => el.href = SCHOOL_LOGO);
   });
 })();
 
-// تسجيل Service Worker
+// تسجيل Service Worker من ملف حقيقي
 if ('serviceWorker' in navigator) {
-  const swCode = `
-const CACHE = 'madrasah-v1';
-const ASSETS = ['/'];
-
-self.addEventListener('install', e => {
-  e.waitUntil(caches.open(CACHE).then(c => c.addAll(ASSETS)));
-  self.skipWaiting();
-});
-
-self.addEventListener('activate', e => {
-  e.waitUntil(clients.claim());
-});
-
-self.addEventListener('fetch', e => {
-  if (e.request.method !== 'GET') return;
-  e.respondWith(
-    fetch(e.request).catch(() => caches.match(e.request))
-  );
-});
-  `;
-  const blob = new Blob([swCode], { type: 'application/javascript' });
-  const swUrl = URL.createObjectURL(blob);
-  navigator.serviceWorker.register(swUrl).catch(() => {});
+  navigator.serviceWorker.register('/service-worker.js').catch(() => {});
 }
 
 // بانر التثبيت
