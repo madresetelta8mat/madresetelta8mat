@@ -322,6 +322,43 @@ function generateQR(elementId, text, size) {
     .cert-v2-photo-wrap { flex: 0 0 auto; }
     .cert-v2-photo { min-height: 160px; }
   }
+  /* ===== STEP 5: توقيع المطور + درج وصفحة الملف الشخصي ===== */
+  .app-footer { text-align: center; color: var(--text-muted); font-size: 0.82rem; padding: 1.25rem 1rem 1.5rem; margin-top: 2rem; border-top: 1px solid var(--border); line-height: 1.7; }
+  .app-footer .footer-sub { font-size: 0.72rem; opacity: 0.85; }
+  .drawer-btn { background: transparent; border: none; color: white; font-size: 1.55rem; line-height: 1; cursor: pointer; padding: 0.3rem 0.55rem; font-family: inherit; border-radius: 8px; }
+  .drawer-btn:hover { color: var(--accent-light); background: rgba(255,255,255,0.12); }
+  #drawer-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.45); z-index: 2400; opacity: 0; pointer-events: none; transition: opacity 0.25s ease; }
+  #drawer-overlay.open { opacity: 1; pointer-events: auto; }
+  #profile-drawer { position: fixed; top: 0; right: 0; height: 100dvh; width: min(320px, 88vw); background: var(--bg-card); color: var(--text); z-index: 2500; box-shadow: -4px 0 24px rgba(0,0,0,0.18); transform: translateX(105%); transition: transform 0.28s ease; padding: 1.25rem; overflow-y: auto; }
+  #profile-drawer.open { transform: translateX(0); }
+  .drawer-close { position: absolute; top: 0.75rem; left: 0.75rem; background: var(--bg); border: 1px solid var(--border); border-radius: 8px; width: 34px; height: 34px; font-size: 1rem; line-height: 1; cursor: pointer; color: var(--text); font-family: inherit; z-index: 1; }
+  .drawer-head { text-align: center; padding-top: 1.5rem; margin-bottom: 1rem; }
+  .drawer-avatar { width: 84px; height: 84px; border-radius: 50%; margin: 0 auto 0.75rem; overflow: hidden; border: 3px solid var(--accent); background: var(--primary); color: white; display: flex; align-items: center; justify-content: center; font-size: 2rem; font-weight: 700; }
+  .drawer-avatar img { width: 100%; height: 100%; object-fit: cover; display: block; }
+  .drawer-name { font-size: 1.15rem; font-weight: 700; color: var(--primary); }
+  .drawer-role { color: var(--accent); font-weight: 600; font-size: 0.9rem; margin-top: 0.15rem; }
+  .drawer-code { color: var(--text-muted); font-size: 0.82rem; margin-top: 0.25rem; }
+  .drawer-rows { border-top: 1px solid var(--border); margin-top: 0.5rem; }
+  .drawer-row { display: flex; justify-content: space-between; gap: 1rem; padding: 0.65rem 0.15rem; border-bottom: 1px solid var(--border); font-size: 0.9rem; }
+  .drawer-row .dr-label { color: var(--text-muted); flex-shrink: 0; }
+  .drawer-row .dr-value { font-weight: 600; text-align: left; word-break: break-word; }
+  .drawer-actions { display: flex; flex-direction: column; gap: 0.6rem; margin-top: 1.25rem; }
+  .btn-drawer-logout { background: var(--bg); border: 1px solid var(--border); color: var(--danger); }
+  .mp-head { text-align: center; margin-bottom: 1.25rem; }
+  .mp-avatar { width: 110px; height: 110px; border-radius: 50%; margin: 0 auto 0.75rem; overflow: hidden; border: 3px solid var(--accent); background: var(--primary); color: white; display: flex; align-items: center; justify-content: center; font-size: 2.6rem; font-weight: 700; }
+  .mp-avatar img { width: 100%; height: 100%; object-fit: cover; display: block; }
+  .mp-name { font-size: 1.35rem; font-weight: 800; color: var(--primary); }
+  .mp-role { color: var(--accent); font-weight: 700; margin-top: 0.2rem; }
+  .mp-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1rem; }
+  .mp-item { background: var(--bg); border: 1px solid var(--border); border-radius: var(--radius); padding: 0.8rem 1rem; }
+  .mp-label { color: var(--text-muted); font-size: 0.8rem; margin-bottom: 0.3rem; }
+  .mp-value { font-weight: 700; font-size: 0.98rem; word-break: break-word; }
+  .mp-stats { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin-top: 1rem; }
+  .mp-stat { background: linear-gradient(135deg, var(--primary), var(--primary-light)); color: white; border-radius: var(--radius); padding: 1rem; text-align: center; }
+  .mp-stat .mp-stat-num { font-size: 1.6rem; font-weight: 800; color: var(--accent-light); }
+  .mp-stat .mp-stat-label { font-size: 0.85rem; opacity: 0.9; margin-top: 0.2rem; }
+  @media print { .app-footer, #profile-drawer, #drawer-overlay { display: none !important; } }
+
 </style>
 </head>
 <body>
@@ -450,6 +487,7 @@ function generateQR(elementId, text, size) {
 <!-- MAIN APP -->
 <div id="app">
   <div class="header">
+    <button class="drawer-btn" onclick="openProfileDrawer()" aria-label="القائمة والملف الشخصي">&#9776;</button>
     <div style="display:flex; align-items:center; gap:0.75rem">
       <img id="header-logo-img" src="" alt="" style="width:40px;height:40px;object-fit:contain;border-radius:50%;border:2px solid var(--accent)">
       <div>
@@ -1294,8 +1332,27 @@ function generateQR(elementId, text, size) {
       <div class="page-title">&#x1F3C6; شهادة الإتمام</div>
       <div id="certificate-content"></div>
     </div>
+    <!-- MY PROFILE (all roles) — STEP 5 -->
+    <div id="my-profile-page" class="page">
+      <button class="btn-sm btn-outline" onclick="goMyProfileHome()" style="margin-bottom:1rem">← رجوع</button>
+      <div class="page-title">الملف الشخصي</div>
+      <div id="my-profile-content"></div>
+    </div>
+
+    <div class="app-footer" dir="ltr">
+      <div>Developed by Tomas Gerges</div>
+      <div class="footer-sub">In service of the Heavenly Choirs School for Deacons</div>
+    </div>
+
 
   </div><!-- content -->
+  <!-- PROFILE DRAWER — STEP 5 -->
+  <div id="drawer-overlay" onclick="closeProfileDrawer()"></div>
+  <aside id="profile-drawer" aria-label="الملف الشخصي">
+    <button class="drawer-close" onclick="closeProfileDrawer()" aria-label="إغلاق">✕</button>
+    <div id="drawer-content"></div>
+  </aside>
+
 </div><!-- app -->
 
 <!-- MODALS -->
@@ -7358,6 +7415,139 @@ function showIOSInstallHint() {
   `;
   document.body.appendChild(banner);
 }
+
+// ========== STEP 5: درج وصفحة الملف الشخصي ==========
+const MY_ROLE_LABELS = { student: 'مخدوم', servant: 'خادم', sector_leader: 'مسؤول قطاع', priest: 'كاهن', admin: 'مدير النظام', system_servant: 'خادم نظام' };
+
+function myProfileData() {
+  if (currentProfile) return currentProfile;
+  if (typeof currentServant !== 'undefined' && currentServant) return Object.assign({}, currentServant, { role: currentServant.role || 'servant' });
+  return null;
+}
+
+function myRoleLabel(p) {
+  let label = MY_ROLE_LABELS[p?.role] || p?.role || '';
+  if (p?.is_assistant) label += ' • مساعد';
+  return label;
+}
+
+function mySectorName(p) {
+  const s = (allSectors || []).find(x => x.id === p?.sector_id);
+  return s?.name || p?.sectors?.name || '';
+}
+
+function myClassName(p) {
+  const c = (allClasses || []).find(x => x.id === p?.class_id);
+  return c?.name || p?.classes?.name || '';
+}
+
+function myAvatarHtml(p, cls) {
+  const url = escUrl(p?.profile_image_url || '');
+  if (url) return `<div class="${cls}"><img src="${url}" alt="الصورة الشخصية"></div>`;
+  const ch = escHtml((p?.full_name || '؟').trim().charAt(0) || '؟');
+  return `<div class="${cls}">${ch}</div>`;
+}
+
+function openProfileDrawer() {
+  renderProfileDrawer();
+  document.getElementById('profile-drawer')?.classList.add('open');
+  document.getElementById('drawer-overlay')?.classList.add('open');
+}
+
+function closeProfileDrawer() {
+  document.getElementById('profile-drawer')?.classList.remove('open');
+  document.getElementById('drawer-overlay')?.classList.remove('open');
+}
+
+function renderProfileDrawer() {
+  const box = document.getElementById('drawer-content');
+  if (!box) return;
+  const p = myProfileData();
+  if (!p) { box.innerHTML = '<div class="empty"><p>لا توجد بيانات</p></div>'; return; }
+  const row = (label, value) => `<div class="drawer-row"><span class="dr-label">${label}</span><span class="dr-value">${escHtml(value || '—')}</span></div>`;
+  box.innerHTML = `
+    <div class="drawer-head">
+      ${myAvatarHtml(p, 'drawer-avatar')}
+      <div class="drawer-name">${escHtml(p.full_name || '')}</div>
+      <div class="drawer-role">${escHtml(myRoleLabel(p))}</div>
+      <div class="drawer-code">الكود: ${escHtml(p.unique_code || '—')}</div>
+    </div>
+    <div class="drawer-rows">
+      ${row('القطاع', mySectorName(p))}
+      ${row('الفصل', myClassName(p))}
+      ${row('التليفون', p.phone)}
+      ${row('الإيميل', p.email)}
+    </div>
+    <div class="drawer-actions">
+      <button class="btn btn-primary" onclick="closeProfileDrawer(); showMyProfile();">الملف الشخصي الكامل</button>
+      <button class="btn btn-drawer-logout" onclick="logout()">خروج</button>
+    </div>`;
+}
+
+function showMyProfile() {
+  const p = myProfileData();
+  if (p && p.role === 'student') { showPage('profile-page'); loadMyProfile(); return; }
+  renderMyProfilePage();
+  showPage('my-profile-page');
+}
+
+function goMyProfileHome() {
+  if (currentServant) { showServantPage('servant-dashboard-page', 'servant-home'); return; }
+  if (currentProfile?.role === 'student') { showPage('profile-page'); loadMyProfile(); }
+  else { showPage('dashboard-page'); loadDashboard(); }
+}
+
+function renderMyProfilePage() {
+  const box = document.getElementById('my-profile-content');
+  if (!box) return;
+  const p = myProfileData();
+  if (!p) { box.innerHTML = '<div class="card"><div class="empty"><p>لا توجد بيانات</p></div></div>'; return; }
+  const item = (label, value) => `<div class="mp-item"><div class="mp-label">${label}</div><div class="mp-value">${escHtml(value || '—')}</div></div>`;
+  let stats = '';
+  if (p.role === 'student') {
+    stats = `<div class="mp-stats">
+      <div class="mp-stat"><div class="mp-stat-num" id="mp-stat-points">…</div><div class="mp-stat-label">⭐ مجموع النقاط</div></div>
+      <div class="mp-stat"><div class="mp-stat-num" id="mp-stat-attendance">…</div><div class="mp-stat-label">📅 أيام الحضور</div></div>
+    </div>`;
+  }
+  box.innerHTML = `
+    <div class="card">
+      <div class="mp-head">
+        ${myAvatarHtml(p, 'mp-avatar')}
+        <div class="mp-name">${escHtml(p.full_name || '')}</div>
+        <div class="mp-role">${escHtml(myRoleLabel(p))}</div>
+      </div>
+      <div class="mp-grid">
+        ${item('الكود', p.unique_code)}
+        ${item('القطاع', mySectorName(p))}
+        ${item('الفصل', myClassName(p))}
+        ${item('التليفون', p.phone)}
+        ${item('الإيميل', p.email)}
+        ${item('تاريخ الميلاد', p.birth_date)}
+        ${item('العنوان', p.address)}
+        ${item('أب الاعتراف', p.confession_father)}
+      </div>
+      ${stats}
+    </div>`;
+  if (p.role === 'student') loadMyProfileStats(p);
+}
+
+async function loadMyProfileStats(p) {
+  const ptsEl = document.getElementById('mp-stat-points');
+  const attEl = document.getElementById('mp-stat-attendance');
+  if (!ptsEl || !attEl) return;
+  try {
+    const { data, error } = await sb.rpc('leaderboard_data');
+    if (error || !Array.isArray(data)) throw error || new Error('leaderboard_data');
+    const row = data.find(r => r.id === p.id);
+    ptsEl.textContent = row ? String(Number(row.points || 0)) : '—';
+    attEl.textContent = row ? String(Number(row.attendance_days || 0)) : '—';
+  } catch (e) {
+    ptsEl.textContent = '—';
+    attEl.textContent = '—';
+  }
+}
+
 </script>
 </body>
 </html>
