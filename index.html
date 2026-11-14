@@ -1806,6 +1806,23 @@ function generateQR(elementId, text, size) {
 
 <!-- CONFIRM DIALOG + TOAST (بدائل داخل التطبيق) -->
 <div id="confirm-overlay" class="modal-overlay" style="display:none; z-index:3000">
+  <div class="modal" id="set-password-modal" style="display:none">
+    <div class="modal-title">
+      🔑 تعيين كلمة سر مباشرة
+      <button aria-label="إغلاق" class="modal-close" onclick="hideModal('set-password-modal')">×</button>
+    </div>
+    <div style="margin-bottom:0.75rem">تعيين كلمة سر جديدة لـ <b id="sp-person-name"></b> — هتشتغل على طول من غير ما يحتاج إيميل.</div>
+    <div id="sp-msg"></div>
+    <div class="form-group">
+      <label>كلمة السر الجديدة</label>
+      <input type="password" id="sp-new" autocomplete="new-password">
+    </div>
+    <div class="form-group">
+      <label>تأكيد كلمة السر</label>
+      <input type="password" id="sp-confirm" autocomplete="new-password">
+    </div>
+    <button class="btn btn-primary" onclick="submitDirectPassword()">تعيين كلمة السر</button>
+  </div>
   <div class="modal" style="max-width:420px" role="alertdialog" aria-modal="true" aria-describedby="confirm-text">
     <div class="modal-title">تأكيد</div>
     <p id="confirm-text" style="line-height:1.8; margin-bottom:1.25rem; white-space:pre-line"></p>
@@ -2959,6 +2976,7 @@ async function loadStudentDetail(studentId) {
         <button class="btn-sm btn-success" onclick="changeStudentRole('${s.id}')">تغيير الدور</button>
         ${['admin','priest'].includes(currentProfile?.role) && s.role === 'student' ? `<button class="btn-sm ${s.is_assistant ? 'btn-danger' : 'btn-warning'}" onclick="toggleAssistant('${s.id}', ${!s.is_assistant})">${s.is_assistant ? 'إلغاء المساعد' : '🧑‍🏫 تعيين كمساعد'}</button>` : ''}
         ${['admin','priest'].includes(currentProfile?.role) && s.email ? `<button class="btn-sm btn-outline" onclick="sendPasswordResetForCurrent()">📧 إرسال رابط تعيين كلمة السر</button>` : ''}
+        ${['admin','priest'].includes(currentProfile?.role) ? `<button class="btn-sm btn-outline" onclick="openSetPasswordModal()">🔑 تعيين كلمة سر مباشرة</button>` : ''}
       </div>
     </div>
   `;
@@ -7947,6 +7965,49 @@ async function sendPasswordResetForCurrent() {
   if (error) { toastMsg(authErrorText(error), 'error'); return; }
   toastMsg('اتبعت رابط التعيين لإيميل الشخص ✅', 'success');
   logActivity('إرسال رابط تعيين كلمة السر', p.full_name || '');
+}
+
+// ---------- STEP 9: تعيين كلمة سر مباشرة عبر Edge Function ----------
+function openSetPasswordModal() {
+  const p = currentDetailPerson;
+  if (!p) return;
+  document.getElementById('sp-person-name').textContent = p.full_name || '';
+  document.getElementById('sp-msg').innerHTML = '';
+  document.getElementById('sp-new').value = '';
+  document.getElementById('sp-confirm').value = '';
+  showModal('set-password-modal');
+}
+
+async function submitDirectPassword() {
+  const p = currentDetailPerson;
+  const msg = document.getElementById('sp-msg');
+  const np = document.getElementById('sp-new').value;
+  const cp = document.getElementById('sp-confirm').value;
+  if (!p) return;
+  if (!np || np.length < 6) { msg.innerHTML = '<div class="msg msg-error">كلمة السر لازم تكون ٦ أحرف على الأقل</div>'; return; }
+  if (np !== cp) { msg.innerHTML = '<div class="msg msg-error">كلمتا السر مش متطابقتين</div>'; return; }
+  msg.innerHTML = '<div class="msg">بنعيّن كلمة السر…</div>';
+  let code = '';
+  try {
+    const { data, error } = await sb.functions.invoke('admin-set-password', { body: { userId: p.id, newPassword: np } });
+    if (data && data.error) code = data.error;
+    if (error) {
+      try { const ctx = await error.context.json(); if (ctx && ctx.error) code = ctx.error; } catch (_) {}
+      if (!code) code = 'invoke_error';
+    }
+  } catch (e) { code = 'invoke_error'; }
+  if (code) {
+    let text = 'حصل خطأ غير متوقع — حاول تاني';
+    if (code === 'forbidden') text = 'معندكش صلاحية تعمل كده';
+    else if (code === 'target_not_found') text = 'الشخص ده ملوش حساب دخول على الموقع';
+    else if (code === 'invalid_input') text = 'كلمة السر لازم تكون ٦ أحرف على الأقل';
+    else if (code === 'unauthorized') text = 'جلستك انتهت — سجّل دخولك من جديد';
+    msg.innerHTML = '<div class="msg msg-error">' + text + '</div>';
+    return;
+  }
+  hideModal('set-password-modal');
+  toastMsg('تم تعيين كلمة سر جديدة لـ ' + (p.full_name || 'الشخص') + ' ✅', 'success');
+  logActivity('تعيين كلمة سر مباشرة', p.full_name || '');
 }
 
 // ---------- C2: تصدير الخدام والافتقاد ----------
