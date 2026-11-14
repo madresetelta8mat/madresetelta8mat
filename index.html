@@ -2080,7 +2080,7 @@ function authErrorText(err) {
   if (m.includes('password')) return '⚠️ كلمة المرور ضعيفة، لازم ٦ أحرف على الأقل';
   if (m.includes('invalid email') || m.includes('unable to validate email')) return '⚠️ الإيميل مكتوب غلط';
   if (m.includes('failed to fetch') || m.includes('network')) return '📶 مشكلة في الإنترنت، جرب تاني';
-  return '❌ ' + (err?.message || 'حصل خطأ غير معروف');
+  return '❌ ' + escHtml(err?.message || 'حصل خطأ غير معروف');
 }
 
 function showAuthMsg(msg, type) {
@@ -2203,7 +2203,7 @@ async function loadServantDashboard() {
   const initials = s.full_name?.split(' ').map(w => w[0]).join('').substring(0, 2) || '؟';
 
   document.getElementById('servant-profile-header').innerHTML = `
-    <div class="profile-avatar">${s.profile_image_url ? `<img src="${s.profile_image_url}">` : initials}</div>
+    <div class="profile-avatar">${s.profile_image_url ? `<img src="${escUrl(s.profile_image_url)}">` : initials}</div>
     <div>
       <div class="profile-name">${escHtml(s.full_name)}</div>
       <div style="margin-top:0.25rem"><span class="badge badge-primary">${getRoleLabel(s.role)}</span> <span class="badge badge-info">${escHtml(s.classes?.name || '')}</span></div>
@@ -2351,7 +2351,7 @@ document.addEventListener('DOMContentLoaded', () => {
       if (!file) return;
       const reader = new FileReader();
       reader.onload = e => {
-        document.getElementById('cp-photo-preview').innerHTML = `<img src="${e.target.result}" style="width:80px;height:80px;border-radius:50%;object-fit:cover;border:3px solid var(--primary)">`;
+        document.getElementById('cp-photo-preview').innerHTML = `<img src="${escUrl(e.target.result)}" style="width:80px;height:80px;border-radius:50%;object-fit:cover;border:3px solid var(--primary)">`;
       };
       reader.readAsDataURL(file);
     });
@@ -2547,7 +2547,7 @@ async function loadMyProfile() {
   const p = currentProfile;
   const initials = p.full_name?.split(' ').map(w => w[0]).join('').substring(0, 2) || '؟';
   const avatarContent = p.profile_image_url 
-    ? `<img src="${p.profile_image_url}" style="width:100%;height:100%;object-fit:cover;border-radius:50%">` 
+    ? `<img src="${escUrl(p.profile_image_url)}" style="width:100%;height:100%;object-fit:cover;border-radius:50%">` 
     : initials;
 
   document.getElementById('profile-header').innerHTML = `
@@ -2720,7 +2720,7 @@ async function loadStudentDetail(studentId) {
 
   const initials = s.full_name?.split(' ').map(w => w[0]).join('').substring(0, 2) || '؟';
   document.getElementById('detail-header').innerHTML = `
-    <div class="profile-avatar">${s.profile_image_url ? `<img src="${s.profile_image_url}">` : initials}</div>
+    <div class="profile-avatar">${s.profile_image_url ? `<img src="${escUrl(s.profile_image_url)}">` : initials}</div>
     <div style="flex:1">
       <div class="profile-name">${escHtml(s.full_name)}</div>
       <div class="profile-code">${s.unique_code}</div>
@@ -2757,8 +2757,8 @@ async function loadStudentDetail(studentId) {
   generateQR('detail-qr-img', s.unique_code, 180);
 
   document.getElementById('detail-docs').innerHTML = `
-    <div class="info-item"><div class="info-label">صورة شخصية</div><div class="info-value">${s.profile_image_url ? '<a href="' + s.profile_image_url + '" target="_blank">عرض الصورة</a>' : 'لم تُرفع بعد'}</div></div>
-    <div class="info-item" style="margin-top:0.5rem"><div class="info-label">شهادة الميلاد</div><div class="info-value">${s.birth_cert_url ? '<a href="' + s.birth_cert_url + '" target="_blank">عرض الشهادة</a>' : 'لم تُرفع بعد'}</div></div>
+    <div class="info-item"><div class="info-label">صورة شخصية</div><div class="info-value">${s.profile_image_url ? '<a href="' + escUrl(s.profile_image_url) + '" target="_blank">عرض الصورة</a>' : 'لم تُرفع بعد'}</div></div>
+    <div class="info-item" style="margin-top:0.5rem"><div class="info-label">شهادة الميلاد</div><div class="info-value">${s.birth_cert_url ? '<a href="' + escUrl(s.birth_cert_url) + '" target="_blank">عرض الشهادة</a>' : 'لم تُرفع بعد'}</div></div>
   `;
 
   // Visits
@@ -3215,7 +3215,7 @@ async function loadServants() {
       <td><span class="badge badge-primary">${getRoleLabel(s.role)}</span></td>
       <td>${escHtml(s.classes?.name || '-')}</td>
       <td>${escHtml(s.phone || '-')}</td>
-      <td><button class="btn-sm btn-outline" onclick="showServantQR('${s.id}','${s.full_name}','${s.unique_code}')">كيو آر</button></td>
+      <td><button class="btn-sm btn-outline" onclick="showServantQR('${s.id}','${escJs(s.full_name)}','${s.unique_code}')">كيو آر</button></td>
       <td>
         ${s.source === 'servants' ? `
           <button class="btn-sm btn-warning" onclick="openEditServantModal('${s.id}')">تعديل</button>
@@ -3503,7 +3503,7 @@ async function loadTasks() {
       </div>
       <div style="display:flex; gap:0.5rem; align-items:center">
         <span class="task-points">${t.points} نقطة</span>
-        <button class="btn-sm btn-success" onclick="openGivePoints('${t.id}','${t.title}','${t.class_id || ''}', ${t.points})">منح نقاط</button>
+        <button class="btn-sm btn-success" onclick="openGivePoints('${t.id}','${escJs(t.title)}','${t.class_id || ''}', ${t.points})">منح نقاط</button>
         <button class="btn-sm btn-danger" onclick="deleteTask('${t.id}')">حذف</button>
       </div>
     </div>
@@ -3727,7 +3727,7 @@ function openClassModal(id = null) {
   const grades = [...GRADE_LEVEL_OPTIONS];
   if (cls?.grade_level && !grades.includes(cls.grade_level)) grades.push(cls.grade_level);
   document.getElementById('class-grade-input').innerHTML = '<option value="">غير محدد</option>' +
-    grades.map(g => `<option value="${g}">${escHtml(g)}</option>`).join('');
+    grades.map(g => `<option value="${escHtml(g)}">${escHtml(g)}</option>`).join('');
   document.getElementById('class-grade-input').value = cls?.grade_level || '';
 
   showModal('class-modal');
@@ -4067,6 +4067,8 @@ function waLink(phone, text) {
 }
 function firstName(full) { return (full || '').trim().split(/\s+/)[0] || ''; }
 function escHtml(t) { return String(t ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c])); }
+function escUrl(u) { const s = String(u ?? '').trim(); if (!s || /[\s\u0000-\u001F\u007F]/.test(s) || /^\\/.test(s)) return ''; const ok = /^https?:\/\//i.test(s) || /^\/\//.test(s) || /^data:image\/(png|jpeg|gif|webp);base64,/i.test(s) || !/^[a-z][a-z0-9+.\-]*:/i.test(s); return ok ? escHtml(s) : ''; }
+function escJs(s) { return escHtml(String(s ?? '').replace(/\\/g, '\\\\').replace(/'/g, "\\'").replace(/\r/g, '\\r').replace(/\n/g, '\\n')); }
 
 function daysUntilBirthday(birthStr) {
   if (!birthStr) return 999;
@@ -4282,7 +4284,7 @@ async function loadBirthdays() {
         </div>
         <div style="display:flex; gap:0.4rem; align-items:center; flex-wrap:wrap">
           ${when}
-          <button class="btn-sm btn-success" id="bday-${x.id}" onclick="sendBirthdayGreeting('${x.id}','${x.kind}','${firstName(x.full_name).replace(/[^\u0600-\u06FFa-zA-Z0-9]/g, '')}')">🎁 تهنئة</button>
+          <button class="btn-sm btn-success" id="bday-${x.id}" onclick="sendBirthdayGreeting('${x.id}','${x.kind}','${escJs(firstName(x.full_name).replace(/[^\u0600-\u06FFa-zA-Z0-9]/g, ''))}')">🎁 تهنئة</button>
           ${wa ? `<a class="btn-sm btn-outline" style="text-decoration:none" href="${wa}" target="_blank" rel="noopener">واتساب</a>` : ''}
         </div>
       </div>`;
@@ -4942,7 +4944,7 @@ function renderServantIdCards(servants) {
       <div style="display:grid; grid-template-columns:repeat(auto-fill, minmax(300px,1fr)); gap:1rem">`;
     sectorServants.forEach(s => {
       const initials = s.full_name?.split(' ').map(w=>w[0]).join('').substring(0,2) || '؟';
-      const photoHtml = s.profile_image_url ? `<img src="${s.profile_image_url}">` : initials;
+      const photoHtml = s.profile_image_url ? `<img src="${escUrl(s.profile_image_url)}">` : initials;
       html += `
         <div class="servant-id-card" id="scard-${s.id}">
           <div class="id-card-header">
@@ -5016,7 +5018,7 @@ function renderIdCards(students) {
     `;
     sectorStudents.forEach(s => {
       const initials = s.full_name?.split(' ').map(w=>w[0]).join('').substring(0,2) || '؟';
-      const photoHtml = s.profile_image_url ? `<img src="${s.profile_image_url}">` : initials;
+      const photoHtml = s.profile_image_url ? `<img src="${escUrl(s.profile_image_url)}">` : initials;
       const birth = s.birth_date ? new Date(s.birth_date).toLocaleDateString('ar-EG') : '';
       const colorClass = getSectorColor(s.classes?.grade_level || '');
       html += `
@@ -5125,7 +5127,7 @@ async function findStudentForExam() {
   const initials = student.full_name?.split(' ').map(w=>w[0]).join('').substring(0,2) || '؟';
   document.getElementById('exam-student-info').innerHTML = `
     <div style="display:flex; align-items:center; gap:1rem; background:var(--bg); border-radius:var(--radius); padding:1rem">
-      <div class="profile-avatar" style="width:50px;height:50px;font-size:1.2rem">${student.profile_image_url ? `<img src="${student.profile_image_url}">` : initials}</div>
+      <div class="profile-avatar" style="width:50px;height:50px;font-size:1.2rem">${student.profile_image_url ? `<img src="${escUrl(student.profile_image_url)}">` : initials}</div>
       <div>
         <div style="font-weight:700; font-size:1.1rem">${escHtml(student.full_name)}</div>
         <div style="color:var(--text-muted); font-size:0.85rem">${escHtml(student.classes?.name || '')}</div>
@@ -5146,7 +5148,7 @@ async function findStudentForExam() {
             <input type="number" id="grade-${sub.id}" placeholder="درجة" min="0" style="width:60px; padding:0.3rem; border:1px solid var(--border); border-radius:6px; font-family:inherit; font-size:0.85rem" onclick="event.stopPropagation()">
             <span style="font-size:0.8rem; color:var(--text-muted)">/</span>
             <input type="number" id="maxgrade-${sub.id}" placeholder="من" min="1" value="10" style="width:50px; padding:0.3rem; border:1px solid var(--border); border-radius:6px; font-family:inherit; font-size:0.85rem" onclick="event.stopPropagation()">
-            <button class="btn-sm btn-success" onclick="recordExam('${sub.id}','${sub.name}')" style="padding:0.3rem 0.6rem; font-size:0.8rem">✓</button>
+            <button class="btn-sm btn-success" onclick="recordExam('${sub.id}','${escJs(sub.name)}')" style="padding:0.3rem 0.6rem; font-size:0.8rem">✓</button>
           </div>
         `}
       </div>
@@ -6530,7 +6532,7 @@ document.getElementById('reg-photo').addEventListener('change', function() {
   if (!file) return;
   const reader = new FileReader();
   reader.onload = e => {
-    document.getElementById('reg-photo-preview').innerHTML = `<img src="${e.target.result}" style="width:80px; height:80px; border-radius:50%; object-fit:cover; border:3px solid var(--primary)">`;
+    document.getElementById('reg-photo-preview').innerHTML = `<img src="${escUrl(e.target.result)}" style="width:80px; height:80px; border-radius:50%; object-fit:cover; border:3px solid var(--primary)">`;
   };
   reader.readAsDataURL(file);
 });
@@ -6544,7 +6546,7 @@ document.getElementById('reg-birth-cert').addEventListener('change', function() 
   } else {
     const reader = new FileReader();
     reader.onload = e => {
-      document.getElementById('reg-cert-preview').innerHTML = `<img src="${e.target.result}" style="width:120px; height:80px; border-radius:8px; object-fit:cover; border:2px solid var(--border)">`;
+      document.getElementById('reg-cert-preview').innerHTML = `<img src="${escUrl(e.target.result)}" style="width:120px; height:80px; border-radius:8px; object-fit:cover; border:2px solid var(--border)">`;
     };
     reader.readAsDataURL(file);
   }
@@ -6698,7 +6700,7 @@ async function loadProgressPage() {
                   <td>
                     <div style="display:flex; align-items:center; gap:0.5rem">
                       <div style="width:32px;height:32px;border-radius:50%;background:var(--primary);display:flex;align-items:center;justify-content:center;font-size:0.75rem;font-weight:700;color:var(--accent);flex-shrink:0;overflow:hidden">
-                        ${s.profile_image_url ? `<img src="${s.profile_image_url}" style="width:100%;height:100%;object-fit:cover">` : initials}
+                        ${s.profile_image_url ? `<img src="${escUrl(s.profile_image_url)}" style="width:100%;height:100%;object-fit:cover">` : initials}
                       </div>
                       <strong>${escHtml(s.full_name)}</strong>
                     </div>
@@ -6974,7 +6976,7 @@ function renderQuizQuestion() {
   }).join('');
 
   document.getElementById('quiz-options').innerHTML = shuffledOpts.map(opt => `
-    <button class="quiz-option" onclick="selectAnswer(this, '${opt.replace(/'/g, "\\'")}', '${q.correct.replace(/'/g, "\\'")}')">
+    <button class="quiz-option" onclick="selectAnswer(this, '${escJs(opt)}', '${escJs(q.correct)}')">
       ${escHtml(opt)}
     </button>
   `).join('');
@@ -7084,7 +7086,7 @@ async function loadAdminCertificates(container) {
       ${completed.map(s => `
         <div class="card" style="text-align:center; cursor:pointer" onclick="openStudentCertModal('${s.id}')">
           <div class="profile-avatar" style="width:60px;height:60px;font-size:1.3rem;margin:0 auto 0.75rem;overflow:hidden">
-            ${s.profile_image_url ? `<img src="${s.profile_image_url}" style="width:100%;height:100%;object-fit:cover">` : s.full_name?.charAt(0) || '؟'}
+            ${s.profile_image_url ? `<img src="${escUrl(s.profile_image_url)}" style="width:100%;height:100%;object-fit:cover">` : s.full_name?.charAt(0) || '؟'}
           </div>
           <div style="font-weight:700">${escHtml(s.full_name)}</div>
           <div style="font-size:0.85rem; color:var(--text-muted); margin:0.25rem 0 0.75rem">${escHtml(s.classes?.name || '')}</div>
@@ -7138,7 +7140,7 @@ async function renderStudentCertificate(container, profile) {
   const today = new Date().toLocaleDateString('ar-EG', { year:'numeric', month:'long', day:'numeric' });
   const possessive = profile.gender === 'female' ? 'حياتها' : 'حياته';
   const photoHtml = profile.profile_image_url
-    ? `<img src="${profile.profile_image_url}" style="width:100%;height:100%;object-fit:cover">`
+    ? `<img src="${escUrl(profile.profile_image_url)}" style="width:100%;height:100%;object-fit:cover">`
     : `<div style="width:100%;height:100%;display:flex;align-items:center;justify-content:center;font-size:3rem;color:#9ca3af">👤</div>`;
 
   container.innerHTML = `
