@@ -1351,6 +1351,7 @@ function generateQR(elementId, text, size) {
     <button class="drawer-close" onclick="closeProfileDrawer()" aria-label="إغلاق">✕</button>
     <div id="drawer-content"></div>
   </aside>
+  <input type="file" id="my-photo-input" accept="image/*" style="display:none" onchange="changeMyPhoto(this)">
 
 </div><!-- app -->
 
@@ -2285,6 +2286,7 @@ async function loadServantDashboard() {
     <div>
       <div class="profile-name">${escHtml(s.full_name)}</div>
       <div style="margin-top:0.25rem"><span class="badge badge-primary">${getRoleLabel(s.role)}</span> <span class="badge badge-info">${escHtml(s.classes?.name || '')}</span></div>
+      <div style="margin-top:0.5rem"><button class="btn-sm btn-outline" onclick="document.getElementById('my-photo-input').click()">📷 تغيير الصورة</button></div>
     </div>
   `;
 
@@ -2634,6 +2636,7 @@ async function loadMyProfile() {
       <div class="profile-name">${escHtml(p.full_name)}</div>
       <div class="profile-code">${p.unique_code}</div>
       <div style="margin-top:0.5rem"><span class="badge badge-info">${escHtml(p.classes?.name || '')}</span></div>
+      <div style="margin-top:0.5rem"><button class="btn-sm btn-outline" onclick="document.getElementById('my-photo-input').click()">📷 تغيير الصورة</button></div>
     </div>
   `;
 
@@ -7478,9 +7481,37 @@ function renderProfileDrawer() {
       ${row('الإيميل', p.email)}
     </div>
     <div class="drawer-actions">
+      <button class="btn btn-outline" onclick="document.getElementById('my-photo-input').click()">📷 تغيير الصورة</button>
       <button class="btn btn-primary" onclick="closeProfileDrawer(); showMyProfile();">الملف الشخصي الكامل</button>
       <button class="btn btn-drawer-logout" onclick="logout()">خروج</button>
     </div>`;
+}
+
+async function changeMyPhoto(input) {
+  const file = input?.files?.[0];
+  input.value = '';
+  if (!file) return;
+  if (!file.type || !file.type.startsWith('image/')) { toastMsg('من فضلك اختر ملف صورة', 'error'); return; }
+  const isServant = !!currentServant && !currentProfile;
+  const owner = isServant ? currentServant : currentProfile;
+  if (!owner?.id) { toastMsg('حدث خطأ: لا يمكن تحديد الحساب', 'error'); return; }
+  const ext = (file.name.split('.').pop() || 'jpg').toLowerCase();
+  const path = (isServant ? 'servants/' : 'photos/') + owner.id + '.' + ext;
+  toastMsg('جاري رفع الصورة...', 'info');
+  const { error: upErr } = await sb.storage.from('student-files').upload(path, file, { upsert: true });
+  if (upErr) { toastMsg('فشل رفع الصورة — حاول مرة أخرى', 'error'); return; }
+  const { data: urlData } = sb.storage.from('student-files').getPublicUrl(path);
+  const url = urlData.publicUrl + '?v=' + Date.now();
+  const table = isServant ? 'servants' : 'profiles';
+  const { error: updErr } = await sb.from(table).update({ profile_image_url: url }).eq('id', owner.id);
+  if (updErr) { toastMsg('تم رفع الصورة لكن فشل حفظها في البيانات', 'error'); return; }
+  owner.profile_image_url = url;
+  setHeaderAvatar(myProfileData());
+  renderProfileDrawer();
+  if (document.getElementById('my-profile-page')?.classList.contains('active')) renderMyProfilePage();
+  if (document.getElementById('profile-page')?.classList.contains('active')) loadMyProfile();
+  if (isServant && document.getElementById('servant-dashboard-page')?.classList.contains('active')) loadServantDashboard();
+  toastMsg('تم تحديث صورتك بنجاح ✅', 'success');
 }
 
 function setHeaderAvatar(person) {
@@ -7523,6 +7554,7 @@ function renderMyProfilePage() {
         ${myAvatarHtml(p, 'mp-avatar')}
         <div class="mp-name">${escHtml(p.full_name || '')}</div>
         <div class="mp-role">${escHtml(myRoleLabel(p))}</div>
+        <div style="margin-top:0.75rem"><button class="btn-sm btn-outline" onclick="document.getElementById('my-photo-input').click()">📷 تغيير الصورة</button></div>
       </div>
       <div class="mp-grid">
         ${item('الكود', p.unique_code)}
