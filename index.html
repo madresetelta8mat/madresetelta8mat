@@ -344,6 +344,15 @@ function generateQR(elementId, text, size) {
   .drawer-row .dr-value { font-weight: 600; text-align: left; word-break: break-word; }
   .drawer-actions { display: flex; flex-direction: column; gap: 0.6rem; margin-top: 1.25rem; }
   .btn-drawer-logout { background: var(--bg); border: 1px solid var(--border); color: var(--danger); }
+  /* STEP 6: focus-visible + tap targets + small-screen header */
+  button:focus-visible, a:focus-visible, .nav-item:focus-visible, .tab:focus-visible, select:focus-visible, input:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+  .btn-sm { min-height: 36px; }
+  @media (max-width: 480px) {
+    .header { padding-inline: 0.6rem; }
+    .header > div { min-width: 0; }
+    .header-title-block { min-width: 0; }
+    .header-title { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  }
   .mp-head { text-align: center; margin-bottom: 1.25rem; }
   .mp-avatar { width: 110px; height: 110px; border-radius: 50%; margin: 0 auto 0.75rem; overflow: hidden; border: 3px solid var(--accent); background: var(--primary); color: white; display: flex; align-items: center; justify-content: center; font-size: 2.6rem; font-weight: 700; }
   .mp-avatar img { width: 100%; height: 100%; object-fit: cover; display: block; }
@@ -490,7 +499,7 @@ function generateQR(elementId, text, size) {
     <button class="drawer-btn" onclick="openProfileDrawer()" aria-label="القائمة والملف الشخصي">&#9776;</button>
     <div style="display:flex; align-items:center; gap:0.75rem">
       <img id="header-logo-img" src="" alt="" style="width:40px;height:40px;object-fit:contain;border-radius:50%;border:2px solid var(--accent)">
-      <div>
+      <div class="header-title-block">
         <div class="header-title">الطغمات السمائية</div>
         <div class="header-sub" id="header-sub">للشمامسة</div>
       </div>
@@ -512,6 +521,8 @@ function generateQR(elementId, text, size) {
         <p>تم تسجيل حسابك بنجاح. يرجى الانتظار حتى يوافق عليك المسؤول.</p>
         <br>
         <p style="font-weight:700; font-size:1rem;" id="pending-code-display"></p>
+        <button class="btn btn-primary" onclick="refreshPendingStatus()" style="width:auto; padding:0.6rem 1.5rem">🔄 تحديث الحالة</button>
+        <p style="margin-top:0.75rem; font-size:0.9rem">هتدخل تلقائيًا أول ما تتوافق عليك</p>
       </div>
     </div>
 
@@ -580,8 +591,12 @@ function generateQR(elementId, text, size) {
       <div class="page-title">المخدومين</div>
       <div id="students-toolbar" style="display:flex; gap:0.5rem; flex-wrap:wrap; margin-bottom:1rem">
         <button class="btn-sm btn-success" onclick="exportStudentsExcel()" style="padding:0.5rem 1rem">📥 تصدير Excel</button>
-        <button class="btn-sm btn-primary" onclick="document.getElementById('import-students-file').click()" style="padding:0.5rem 1rem">📤 استيراد Excel</button>
-        <button class="btn-sm btn-outline" onclick="downloadImportTemplate()" style="padding:0.5rem 1rem">📋 قالب الاستيراد</button>
+        <select id="import-target-select" aria-label="هدف الاستيراد" style="padding:0.5rem; border:1px solid var(--border); border-radius:6px; font-family:inherit">
+          <option value="student">الاستيراد لـ: مخدومين</option>
+          <option value="servant">الاستيراد لـ: خدام</option>
+        </select>
+        <button class="btn-sm btn-primary" onclick="openImportFile(document.getElementById('import-target-select').value)" style="padding:0.5rem 1rem">📤 استيراد Excel</button>
+        <button class="btn-sm btn-outline" onclick="downloadImportTemplate(document.getElementById('import-target-select').value)" style="padding:0.5rem 1rem">📋 قالب الاستيراد</button>
         <input type="file" id="import-students-file" accept=".xlsx,.xls,.csv" style="display:none" onchange="handleImportFile(this)">
         <button class="btn-sm btn-primary" id="move-selected-btn" onclick="openMoveModal('selected')" style="padding:0.5rem 1rem; display:none">↔️ نقل المحدد (<span id="selected-count">0</span>)</button>
         <button class="btn-sm btn-warning" id="move-class-btn" onclick="openMoveModal('class')" style="padding:0.5rem 1rem; display:none">🔀 نقل فصل بالكامل</button>
@@ -594,6 +609,7 @@ function generateQR(elementId, text, size) {
           <option value="">كل الفصول</option>
         </select>
         <input type="text" id="filter-search" placeholder="ابحث بالاسم..." oninput="filterStudents()" style="min-width:180px">
+        <span id="students-count" style="align-self:center; color:var(--text-muted); font-size:0.9rem"></span>
       </div>
       <div class="card">
         <div class="table-wrap">
@@ -613,7 +629,7 @@ function generateQR(elementId, text, size) {
         <button class="btn-sm btn-outline" onclick="goBack()">← رجوع</button>
         <div style="display:flex; gap:0.5rem">
           <button class="btn btn-warning" onclick="openEditStudentModal()" style="width:auto; padding:0.5rem 1.25rem; font-size:0.9rem; background:var(--warning); color:white;">✏️ تعديل البيانات</button>
-          <button class="btn btn-danger" onclick="deleteStudent()" style="width:auto; padding:0.5rem 1.25rem; font-size:0.9rem">🗑️ حذف المخدوم</button>
+          <button class="btn btn-danger" id="detail-delete-btn" onclick="deleteStudent()" style="width:auto; padding:0.5rem 1.25rem; font-size:0.9rem">🗑️ حذف المخدوم</button>
         </div>
       </div>
       <div class="card" style="margin-bottom:1rem">
@@ -694,6 +710,7 @@ function generateQR(elementId, text, size) {
               <select id="att-class-filter" onchange="loadAttStudents()">
                 <option value="">كل الفصول</option>
               </select>
+              <input type="text" id="att-student-search" placeholder="ابحث بالاسم..." oninput="renderAttStudents()" style="min-width:160px">
             </div>
             <div id="att-students-list"><div class="loading">اختر القطاع والفصل</div></div>
           </div>
@@ -780,8 +797,8 @@ function generateQR(elementId, text, size) {
       <div class="page-title">🔔 الإشعارات</div>
       <div id="push-enable-section" style="margin-bottom:1rem; display:none">
         <div class="card" style="text-align:center; padding:1.25rem">
-          <div style="margin-bottom:0.75rem; color:var(--text-muted); font-size:0.9rem">فعّل الإشعارات عشان تليفونك يرن لما يجيلك إشعار جديد</div>
-          <button class="btn btn-primary" onclick="enablePushNotifications()" style="width:auto; padding:0.6rem 1.5rem">🔔 فعّل إشعارات التليفون</button>
+          <div class="card-title" style="text-align:center">🔔 إشعارات التليفون</div>
+          <div id="push-status-content"><div class="loading">جاري التحقق من حالة الإشعارات...</div></div>
           <div id="push-enable-msg" style="margin-top:0.75rem"></div>
         </div>
       </div>
@@ -830,6 +847,8 @@ function generateQR(elementId, text, size) {
     <div id="servants-page" class="page">
       <div class="page-title">الخدام</div>
       <button class="btn btn-primary" onclick="openAddServantModal()" style="width:auto; padding:0.6rem 1.5rem; margin-bottom:1rem">+ إضافة خادم</button>
+      <button class="btn-sm btn-primary" onclick="openImportFile('servant')" style="padding:0.6rem 1.2rem; margin-bottom:1rem">📤 استيراد خدام Excel</button>
+      <button class="btn-sm btn-success" onclick="exportServantsExcel()" style="padding:0.6rem 1.2rem; margin-bottom:1rem">📥 تصدير Excel</button>
       <div class="filters">
         <select id="servant-sector-filter" onchange="loadServants()">
           <option value="">كل القطاعات</option>
@@ -837,6 +856,8 @@ function generateQR(elementId, text, size) {
         <select id="servant-class-filter" onchange="loadServants()">
           <option value="">كل الفصول</option>
         </select>
+        <input type="text" id="servant-search" placeholder="ابحث بالاسم أو التليفون..." oninput="filterServants()" style="min-width:180px">
+        <span id="servants-count" style="align-self:center; color:var(--text-muted); font-size:0.9rem"></span>
       </div>
       <div class="card">
         <div class="table-wrap">
@@ -868,6 +889,7 @@ function generateQR(elementId, text, size) {
       <div style="display:flex; gap:0.5rem; margin-bottom:1rem">
         <button class="btn btn-primary" onclick="openVisitModal(null)" style="width:auto; padding:0.6rem 1.5rem">+ إضافة افتقاد</button>
         <button class="btn btn-danger" onclick="deleteAllVisits()" style="width:auto; padding:0.6rem 1.5rem">🗑️ حذف الكل</button>
+        <button class="btn-sm btn-success" onclick="exportVisitsExcel()" style="padding:0.6rem 1.2rem">📥 تصدير Excel</button>
       </div>
       <div class="filters">
         <select id="visit-class-filter" onchange="loadVisits()">
@@ -880,6 +902,7 @@ function generateQR(elementId, text, size) {
           <option value="home">منزل</option>
         </select>
       </div>
+      <div id="visits-count" style="margin-bottom:0.75rem; color:var(--text-muted); font-size:0.9rem"></div>
       <div id="visits-list"><div class="loading">جاري التحميل...</div></div>
     </div>
 
@@ -903,6 +926,10 @@ function generateQR(elementId, text, size) {
         <button class="tab" onclick="switchReportTab('monthly', event)">🗓️ تقرير شهري</button>
         <button class="tab" onclick="switchReportTab('annual', event)">📆 تقرير سنوي</button>
         <button class="tab" onclick="switchReportTab('servants', event)">👨‍💼 تقرير الخدام</button>
+      </div>
+
+      <div style="margin-bottom:1.5rem">
+        <button class="btn" id="backup-btn" onclick="downloadBackup()" style="width:auto; padding:0.6rem 1.5rem; background:var(--primary); color:white; font-weight:700; display:none">⬇️ نسخة احتياطية (Excel)</button>
       </div>
 
       <!-- WEEKLY REPORT -->
@@ -1191,12 +1218,19 @@ function generateQR(elementId, text, size) {
     <!-- PENDING APPROVALS (admin) -->
     <div id="approvals-page" class="page">
       <div class="page-title">طلبات الموافقة</div>
+      <div class="filters">
+        <input type="text" id="approvals-search" placeholder="ابحث بالاسم..." oninput="filterApprovals()" style="min-width:180px">
+        <select id="approvals-class-filter" onchange="filterApprovals()">
+          <option value="">كل الفصول</option>
+        </select>
+        <span id="approvals-count" style="align-self:center; font-weight:600"></span>
+      </div>
       <div id="approvals-list"><div class="loading">جاري التحميل...</div></div>
     </div>
 
     <!-- PROGRESS TRACKING PAGE (admin/priest dashboard view) -->
     <div id="progress-page" class="page">
-      <div class="page-title">&#x1F4C8; مسار التقدم</div>
+      <div class="page-title">📈 مسار التقدم</div>
       <div class="filters">
         <select id="progress-sector-filter" onchange="loadProgressPage()">
           <option value="">كل القطاعات</option>
@@ -1508,7 +1542,7 @@ function generateQR(elementId, text, size) {
   <!-- EDIT STUDENT MODAL -->
   <div class="modal" id="edit-student-modal" style="display:none">
     <div class="modal-title">
-      تعديل بيانات المخدوم
+      <span id="edit-student-modal-title">تعديل بيانات المخدوم</span>
       <button aria-label="إغلاق" class="modal-close" onclick="hideModal('edit-student-modal')">×</button>
     </div>
     <input type="hidden" id="edit-student-id">
@@ -1597,7 +1631,7 @@ function generateQR(elementId, text, size) {
   <!-- IMPORT STUDENTS MODAL -->
   <div class="modal" id="import-modal" style="display:none; max-width:850px">
     <div class="modal-title">
-      <span>📤 استيراد مخدومين من Excel</span>
+      <span id="import-modal-title">📤 استيراد مخدومين من Excel</span>
       <button aria-label="إغلاق" class="modal-close" onclick="hideModal('import-modal')">×</button>
     </div>
     <div id="import-body"></div>
@@ -1694,6 +1728,79 @@ function generateQR(elementId, text, size) {
     </div>
   </div>
 
+  <!-- EDIT MY PROFILE MODAL (STEP 6) -->
+  <div class="modal" id="edit-my-profile-modal" style="display:none">
+    <div class="modal-title">
+      ✏️ تعديل بياناتي
+      <button aria-label="إغلاق" class="modal-close" onclick="hideModal('edit-my-profile-modal')">×</button>
+    </div>
+    <div id="edit-my-profile-msg"></div>
+    <div class="form-group">
+      <label>الاسم الكامل</label>
+      <input type="text" id="my-name">
+    </div>
+    <div class="form-group">
+      <label>تاريخ الميلاد</label>
+      <input type="date" id="my-birth">
+    </div>
+    <div class="form-group">
+      <label>العنوان</label>
+      <input type="text" id="my-address">
+    </div>
+    <div class="form-group">
+      <label>التليفون</label>
+      <input type="tel" id="my-phone">
+    </div>
+    <div class="form-group" id="my-whatsapp-group">
+      <label>واتساب</label>
+      <input type="tel" id="my-whatsapp">
+    </div>
+    <div class="form-group">
+      <label>أب الاعتراف</label>
+      <input type="text" id="my-confession">
+    </div>
+    <div class="form-actions">
+      <button class="btn btn-primary" onclick="saveMyProfile()">حفظ</button>
+      <button class="btn" onclick="hideModal('edit-my-profile-modal')" style="background:var(--border)">إلغاء</button>
+    </div>
+  </div>
+
+  <!-- SECURITY MODAL: PASSWORD + EMAIL (STEP 6) -->
+  <div class="modal" id="security-modal" style="display:none">
+    <div class="modal-title">
+      🔑 كلمة السر والإيميل
+      <button aria-label="إغلاق" class="modal-close" onclick="hideModal('security-modal')">×</button>
+    </div>
+    <div style="font-weight:700; margin-bottom:0.5rem">تغيير كلمة السر</div>
+    <div id="sec-pass-msg"></div>
+    <div class="form-group">
+      <label>كلمة السر الجديدة</label>
+      <input type="password" id="sec-new-pass" autocomplete="new-password">
+    </div>
+    <div class="form-group">
+      <label>تأكيد كلمة السر الجديدة</label>
+      <input type="password" id="sec-confirm-pass" autocomplete="new-password">
+    </div>
+    <button class="btn btn-primary" onclick="changeMyPassword()" style="margin-bottom:1.25rem">حفظ كلمة السر الجديدة</button>
+    <div style="border-top:1px solid var(--border); padding-top:1rem">
+      <div style="font-weight:700; margin-bottom:0.5rem">تغيير الإيميل</div>
+      <div id="sec-email-msg"></div>
+      <div class="form-group">
+        <label>الإيميل الحالي</label>
+        <input type="email" id="sec-current-email" readonly style="background:var(--bg)">
+      </div>
+      <div class="form-group">
+        <label>الإيميل الجديد</label>
+        <input type="email" id="sec-new-email" autocomplete="email">
+      </div>
+      <p style="font-size:0.85rem; color:var(--text-muted); margin-bottom:0.75rem">هيتبعت لينك تأكيد للإيميل الجديد، والتغيير بيكمل أول ما تضغط عليه.</p>
+      <button class="btn btn-primary" onclick="changeMyEmail()">طلب تغيير الإيميل</button>
+    </div>
+    <div class="form-actions" style="margin-top:1rem">
+      <button class="btn" onclick="hideModal('security-modal')" style="background:var(--border)">إغلاق</button>
+    </div>
+  </div>
+
 </div><!-- modal overlay -->
 
 <!-- CONFIRM DIALOG + TOAST (بدائل داخل التطبيق) -->
@@ -1786,8 +1893,8 @@ function logActivity(action, details = '') {
   try {
     const name = currentServant?.full_name || currentProfile?.full_name || '';
     const role = currentServant ? (currentServant.role || 'servant') : (currentProfile?.role || '');
-    sb.from('activity_log').insert({ user_id: currentUser?.id || null, user_name: name, user_role: role, action, details: String(details).slice(0, 500) }).then(() => {}, () => {});
-  } catch (e) {}
+    sb.from('activity_log').insert({ user_id: currentUser?.id || null, user_name: name, user_role: role, action, details: String(details).slice(0, 500) }).then(() => {}, (e) => console.warn('logActivity failed', e));
+  } catch (e) { console.warn('logActivity failed', e); }
 }
 
 let currentUser = null;
@@ -1902,7 +2009,7 @@ async function submitNewPassword() {
 
   showAuthMsg('جاري الحفظ...', 'info');
   const { error } = await sb.auth.updateUser({ password: newPass });
-  if (error) { showAuthMsg('❌ ' + escHtml(error.message), 'error'); return; }
+  if (error) { showAuthMsg(authErrorText(error), 'error'); return; }
 
   showAuthMsg('✅ تم تغيير كلمة السر بنجاح! جاري تسجيل الدخول...', 'success');
 
@@ -1991,7 +2098,7 @@ async function servantFirstRegister() {
       await loadUserProfile();
       return;
     }
-    showAuthMsg('خطأ: ' + escHtml(error.message), 'error'); return;
+    showAuthMsg(authErrorText(error), 'error'); return;
   }
 
   if (data?.user?.id) {
@@ -2113,7 +2220,8 @@ async function register() {
 
   if (profErr) {
     console.error('profile insert failed', profErr);
-    showAuthMsg('❌ الحساب اتعمل بس بياناتك ما اتحفظتش: ' + escHtml(profErr.message) + '. صوّر الرسالة دي وابعتها للمسؤول.', 'error');
+    console.error(profErr);
+    showAuthMsg('❌ الحساب اتعمل بس بياناتك ما اتحفظتش. كلّم المسؤول يساعدك تكمل التسجيل.', 'error');
     return;
   }
 
@@ -2127,7 +2235,7 @@ async function forgotPassword(emailFieldId) {
   const { error } = await sb.auth.resetPasswordForEmail(email, {
     redirectTo: window.location.origin + window.location.pathname
   });
-  if (error) { showAuthMsg('❌ ' + escHtml(error.message), 'error'); return; }
+  if (error) { showAuthMsg(authErrorText(error), 'error'); return; }
   showAuthMsg('✅ اتبعتلك إيميل لإعادة تعيين كلمة السر، افتح إيميلك!', 'success');
 }
 
@@ -2148,6 +2256,16 @@ async function logout() {
   populateSectorDropdowns();
   document.getElementById('app').style.display = 'none';
   document.getElementById('auth-screen').style.display = 'flex';
+}
+
+// رسائل خطأ عربية مفهومة لأي خطأ من قاعدة البيانات/الشبكة (STEP 6 - B2)
+function friendlyError(err) {
+  const m = ((err && err.message) || String(err || '')).toLowerCase();
+  if (m.includes('duplicate') || m.includes('unique') || m.includes('already exists') || m.includes('23505')) return 'البيانات دي مسجلة قبل كده — راجع الاسم/الكود/الإيميل';
+  if (m.includes('foreign key') || m.includes('violates foreign key') || m.includes('23503')) return 'فيه بيانات مرتبطة بتمنع العملية دي';
+  if (m.includes('row-level security') || m.includes('permission') || m.includes('not authorized') || m.includes('42501') || m.includes('jwt')) return 'معندكش صلاحية تعمل كده';
+  if (m.includes('failed to fetch') || m.includes('network') || m.includes('load failed') || m.includes('timeout') || m.includes('fetch')) return 'اتأكد من اتصال النت وحاول تاني';
+  return 'حصل خطأ غير متوقع — حاول تاني';
 }
 
 function authErrorText(err) {
@@ -2476,11 +2594,11 @@ function buildNavByRole(role) {
   const allPages = [
     { id: 'dashboard', label: '🏠 الرئيسية', page: 'dashboard-page', roles: ['admin','priest','sector_leader','servant','system_servant'] },
     { id: 'profile', label: '👤 بروفايلي', page: 'profile-page', roles: ['student'] },
-    { id: 'certificate', label: '🏆 شهادتي', page: 'certificate-page', roles: ['student'] },
+    { id: 'my-certificate', label: '🏆 شهادتي', page: 'certificate-page', roles: ['student'] },
     { id: 'students', label: '👦 المخدومين', page: 'students-page', roles: ['admin','priest','sector_leader','servant','system_servant'] },
     { id: 'attendance', label: '📅 الحضور', page: 'attendance-page', roles: ['admin','priest','sector_leader','servant','system_servant'] },
     { id: 'notifications', label: '🔔 الإشعارات', page: 'notifications-page', roles: ['admin','priest','sector_leader','servant','student','system_servant'] },
-    { id: 'visits', label: '🏠 الافتقاد', page: 'visits-page', roles: ['admin','priest','sector_leader','servant','system_servant'] },
+    { id: 'visits', label: '🤝 الافتقاد', page: 'visits-page', roles: ['admin','priest','sector_leader','servant','system_servant'] },
     { id: 'tasks', label: '⭐ المهام', page: 'tasks-page', roles: ['admin','priest','sector_leader','servant','system_servant'] },
     { id: 'exams', label: '📝 الامتحانات', page: 'exams-page', roles: ['admin','priest','sector_leader','servant','system_servant'] },
     { id: 'idcards', label: '🪪 البطاقات', page: 'idcards-page', roles: ['admin','priest','sector_leader','system_servant'] },
@@ -2489,10 +2607,10 @@ function buildNavByRole(role) {
     { id: 'approvals', label: '✅ الموافقات', page: 'approvals-page', roles: ['admin','priest','sector_leader','servant','system_servant'] },
     { id: 'classes', label: '🏫 الفصول والقطاعات', page: 'classes-page', roles: ['admin','priest'] },
     { id: 'leaderboard', label: '🏅 لوحة الشرف', page: 'leaderboard-page', roles: ['admin','priest','sector_leader','servant','student','system_servant'] },
-    { id: 'activity', label: '📜 سجل النشاط', page: 'activity-page', roles: ['admin','priest'] },
+    { id: 'activity', label: '📜 سجل النشاط', page: 'activity-page', roles: ['admin','priest','sector_leader'] },
     { id: 'progress', label: '📈 مسار التقدم', page: 'progress-page', roles: ['admin','priest','sector_leader','servant','system_servant'] },
     { id: 'quiz', label: '🤖 بوت المراجعة', page: 'quiz-page', roles: ['admin','priest','sector_leader','servant','student','system_servant'] },
-    { id: 'certificate', label: '🏆 الشهادات', page: 'certificate-page', roles: ['admin','priest','sector_leader'] },
+    { id: 'certificates', label: '🏆 الشهادات', page: 'certificate-page', roles: ['admin','priest','sector_leader'] },
   ];
   const isAssistant = role === 'student' && currentProfile?.is_assistant === true;
   buildNav(allPages.filter(p => p.roles.includes(role) || (isAssistant && p.id === 'attendance')).map(p => p.id), allPages);
@@ -2520,6 +2638,8 @@ function showPage(pageId, navId) {
     document.getElementById('report-date').value = today;
     const annualBtn = document.querySelector('#reports-page .main-report-tabs .tab[onclick*="annual"]');
     if (annualBtn) annualBtn.style.display = getScope().type === 'all' ? '' : 'none';
+    const backupBtn = document.getElementById('backup-btn');
+    if (backupBtn) backupBtn.style.display = ['admin','priest'].includes(currentProfile?.role) ? '' : 'none';
   }
   if (pageId === 'students-page') loadStudents();
   if (pageId === 'servants-page') loadServants();
@@ -2560,7 +2680,7 @@ async function toggleAssistant(studentId, makeAssistant) {
   const msg = makeAssistant ? 'هتخلي الشخص ده مساعد؟ هيقدر ياخد الغياب بس.' : 'هتشيل صلاحية المساعد من الشخص ده؟';
   if (!(await confirmDialog(msg, false))) return;
   const { data, error } = await sb.from('profiles').update({ is_assistant: makeAssistant }).eq('id', studentId).select();
-  if (error) { toastMsg('حصل خطأ: ' + error.message + '\n(اتأكد إنك شغلت أمر SQL بتاع عمود is_assistant)', 'error'); return; }
+  if (error) { toastMsg(friendlyError(error), 'error'); return; }
   if (!data || !data.length) { toastMsg('التعديل ما اتحفظش. غالبًا صلاحيات Supabase (RLS)', 'error'); return; }
   logActivity(makeAssistant ? 'تعيين مساعد' : 'إلغاء مساعد', data[0]?.full_name || studentId);
   toastMsg(makeAssistant ? '✅ تم تعيينه مساعد' : '✅ تم إلغاء المساعد', 'success');
@@ -2577,21 +2697,27 @@ async function loadDashboard() {
   loadDashboardCharts();
   loadBirthdays();
   let studentsQuery = sb.from('profiles').select('id', { count: 'exact' }).eq('role', 'student').eq('approved', true);
+  // عدد الخدام = جدول servants القديم + خدام profiles (نفس دمج صفحة الخدام في loadServants)
   let servantsQuery = sb.from('servants').select('id', { count: 'exact' });
+  let profileServantsQuery = sb.from('profiles').select('id', { count: 'exact' }).in('role', ['servant', 'sector_leader', 'priest']);
 
   if (role === 'sector_leader' && currentProfile.sector_id) {
     studentsQuery = studentsQuery.eq('sector_id', currentProfile.sector_id);
     servantsQuery = servantsQuery.eq('sector_id', currentProfile.sector_id);
+    profileServantsQuery = profileServantsQuery.eq('sector_id', currentProfile.sector_id);
   } else if (role === 'servant' && currentProfile.class_id) {
     studentsQuery = studentsQuery.eq('class_id', currentProfile.class_id);
     servantsQuery = servantsQuery.eq('class_id', currentProfile.class_id);
+    profileServantsQuery = profileServantsQuery.eq('class_id', currentProfile.class_id);
   }
 
-  const [{ count: studentsCount }, { count: servantsCount }, { count: pendingCount }] = await Promise.all([
+  const [{ count: studentsCount }, { count: legacyServantsCount }, { count: profileServantsCount }, { count: pendingCount }] = await Promise.all([
     studentsQuery,
     servantsQuery,
+    profileServantsQuery,
     sb.from('profiles').select('id', { count: 'exact' }).eq('role', 'student').eq('approved', false)
   ]);
+  const servantsCount = (legacyServantsCount || 0) + (profileServantsCount || 0);
 
   const today = todayCairo();
   const { count: attToday } = await applyScopeToQuery(sb.from('attendance').select('id', { count: 'exact' }).gte('attended_at', dayStart(today)).lte('attended_at', dayEnd(today)));
@@ -2637,6 +2763,7 @@ async function loadMyProfile() {
       <div class="profile-code">${p.unique_code}</div>
       <div style="margin-top:0.5rem"><span class="badge badge-info">${escHtml(p.classes?.name || '')}</span></div>
       <div style="margin-top:0.5rem"><button class="btn-sm btn-outline" onclick="document.getElementById('my-photo-input').click()">📷 تغيير الصورة</button></div>
+      <div style="margin-top:0.5rem"><button class="btn-sm btn-primary" onclick="openEditMyProfile()">✏️ تعديل بياناتي</button></div>
     </div>
   `;
 
@@ -2716,6 +2843,7 @@ function canMoveStudents() { return MOVER_ROLES.includes(currentProfile?.role); 
 
 function renderStudents(students) {
   currentFilteredStudents = students;
+  const _sc = document.getElementById('students-count'); if (_sc) _sc.textContent = 'العدد: ' + students.length;
   const canMove = canMoveStudents();
   const th = document.getElementById('students-check-th');
   if (th) th.style.display = canMove ? '' : 'none';
@@ -2763,15 +2891,16 @@ function filterStudents() {
   let filtered = allStudents;
   if (sectorId) filtered = filtered.filter(s => s.sector_id === sectorId);
   if (classId) filtered = filtered.filter(s => s.class_id === classId);
-  if (search) filtered = filtered.filter(s => s.full_name.toLowerCase().includes(search));
+  if (search) filtered = filtered.filter(s => s.full_name.toLowerCase().includes(search) || (s.unique_code || '').toLowerCase().includes(search) || (s.phone || '').includes(search));
   renderStudents(filtered);
 }
 
 async function deleteStudent() {
-  if (!(await confirmDialog('هتحذف المخدوم ده وكل بياناته؟ مش هيرجع!', true))) return;
+  const _noun = currentDetailRole === 'student' ? 'المخدوم' : currentDetailRole === 'servant' ? 'الخادم' : 'الشخص';
+  if (!(await confirmDialog('هتحذف ' + _noun + ' ده وكل بياناته؟ مش هيرجع!', true))) return;
   const _delName = document.querySelector('#detail-header .profile-name')?.textContent || currentStudentId;
   await sb.rpc('delete_user_completely', { user_id: currentStudentId });
-  logActivity('حذف مخدوم', _delName);
+  logActivity('حذف ' + _noun, _delName);
   toastMsg('✅ تم الحذف', 'success');
   goBack();
   loadStudents();
@@ -2788,8 +2917,11 @@ async function changeStudentRole(studentId) {
   loadStudentDetail(studentId);
 }
 
-async function viewStudent(studentId) {
-  previousPage = { page: 'students-page', nav: 'students' };
+let currentDetailPerson = null;
+let currentDetailRole = 'student';
+
+async function viewStudent(studentId, fromPage, fromNav) {
+  previousPage = { page: fromPage || 'students-page', nav: fromNav || 'students' };
   currentStudentId = studentId;
   showPage('student-detail-page');
   await loadStudentDetail(studentId);
@@ -2798,6 +2930,10 @@ async function viewStudent(studentId) {
 async function loadStudentDetail(studentId) {
   const { data: s = null } = await sb.from('profiles').select('*, classes(name), sectors(name)').eq('id', studentId).single();
   if (!s) return;
+  currentDetailPerson = s;
+  currentDetailRole = s.role || 'student';
+  const _delBtn = document.getElementById('detail-delete-btn');
+  if (_delBtn) _delBtn.textContent = '🗑️ حذف ' + (currentDetailRole === 'student' ? 'المخدوم' : currentDetailRole === 'servant' ? 'الخادم' : 'الشخص');
 
   const initials = s.full_name?.split(' ').map(w => w[0]).join('').substring(0, 2) || '؟';
   document.getElementById('detail-header').innerHTML = `
@@ -2821,6 +2957,7 @@ async function loadStudentDetail(studentId) {
         </select>
         <button class="btn-sm btn-success" onclick="changeStudentRole('${s.id}')">تغيير الدور</button>
         ${['admin','priest'].includes(currentProfile?.role) && s.role === 'student' ? `<button class="btn-sm ${s.is_assistant ? 'btn-danger' : 'btn-warning'}" onclick="toggleAssistant('${s.id}', ${!s.is_assistant})">${s.is_assistant ? 'إلغاء المساعد' : '🧑‍🏫 تعيين كمساعد'}</button>` : ''}
+        ${['admin','priest'].includes(currentProfile?.role) && s.email ? `<button class="btn-sm btn-outline" onclick="sendPasswordResetForCurrent()">📧 إرسال رابط تعيين كلمة السر</button>` : ''}
       </div>
     </div>
   `;
@@ -2885,6 +3022,7 @@ async function openEditStudentModal() {
   if (!currentStudentId) return;
   const { data: s = null } = await sb.from('profiles').select('*').eq('id', currentStudentId).single();
   if (!s) return;
+  document.getElementById('edit-student-modal-title').textContent = 'تعديل بيانات ' + (s.role === 'student' ? 'المخدوم' : s.role === 'servant' ? 'الخادم' : 'الشخص');
 
   document.getElementById('edit-student-id').value = s.id;
   document.getElementById('edit-student-name').value = s.full_name || '';
@@ -2947,7 +3085,7 @@ async function saveEditStudent() {
     if (!sectorId) { toastMsg('الفصل ده مش موجود. اختار القطاع الأول علشان يتعمل فصل جديد بالاسم ده', 'info'); return; }
     if (!(await confirmDialog('الفصل "' + className + '" مش موجود في القطاع ده. تعمله فصل جديد؟', false))) return;
     const { data: newCls, error: clsErr } = await sb.from('classes').insert({ name: className, sector_id: sectorId }).select().single();
-    if (clsErr) { toastMsg('تعذر إنشاء الفصل: ' + clsErr.message, 'error'); return; }
+    if (clsErr) { toastMsg('تعذر إنشاء الفصل: ' + friendlyError(clsErr), 'error'); return; }
     allClasses.push(newCls);
     classId = newCls.id;
   }
@@ -2964,7 +3102,7 @@ async function saveEditStudent() {
   }).eq('id', id).select();
 
   if (error) {
-    toastMsg('حصل خطأ أثناء حفظ التعديلات: ' + error.message, 'error');
+    toastMsg('حصل خطأ أثناء حفظ التعديلات: ' + friendlyError(error), 'error');
     return;
   }
   if (!updated || !updated.length) {
@@ -3052,7 +3190,7 @@ async function recordAttendanceByCode(rawCode, resultDiv) {
 
   let person = null, type = null;
   const { data: prof, error: profErr } = await sb.from('profiles').select('*').eq('unique_code', code).limit(1);
-  if (profErr) { resultDiv.innerHTML = '<div class="msg msg-error">❌ خطأ في البحث: ' + escHtml(profErr.message) + '</div>'; return 'err'; }
+  if (profErr) { resultDiv.innerHTML = '<div class="msg msg-error">❌ ' + friendlyError(profErr) + '</div>'; return 'err'; }
   if (prof && prof.length) {
     person = prof[0];
     type = person.role === 'student' ? 'student' : 'servant';
@@ -3071,7 +3209,7 @@ async function recordAttendanceByCode(rawCode, resultDiv) {
   if (existing && existing.length) { resultDiv.innerHTML = `<div class="msg msg-info">ℹ️ ${escHtml(person.full_name)} اتسجل حضوره النهارده قبل كده</div>`; return 'dup'; }
 
   const { error: insErr } = await sb.from('attendance').insert({ person_id: person.id, person_type: type, class_id: person.class_id, method: 'qr' });
-  if (insErr) { resultDiv.innerHTML = '<div class="msg msg-error">❌ ما اتسجلش الحضور: ' + escHtml(insErr.message) + '</div>'; return 'err'; }
+  if (insErr) { resultDiv.innerHTML = '<div class="msg msg-error">❌ ما اتسجلش الحضور: ' + friendlyError(insErr) + '</div>'; return 'err'; }
 
   addNotification(person.id, type, 'attendance_welcome', 'تم تسجيل حضورك ✅',
     type === 'student' ? 'تعالى علطول عشان بنحبك جدا ❤️❤️' : 'وجودك فرق معانا جدا تعيش وتخدم❤️❤️❤️');
@@ -3115,33 +3253,50 @@ async function loadAttStudents() {
 
   const { data: students = [] } = await query;
   (students || []).forEach(x => { attNameCache[x.id] = x.full_name; });
-  const listDiv = document.getElementById('att-students-list');
-  if (!students?.length) { listDiv.innerHTML = '<div class="empty"><p>لا يوجد مخدومين</p></div>'; return; }
-
-  const today = todayCairo();
-  const { data: todayAtt = [] } = await sb.from('attendance').select('person_id').eq('person_type', 'student').gte('attended_at', dayStart(today));
-  const presentIds = new Set(todayAtt?.map(a => a.person_id) || []);
-
-  listDiv.innerHTML = `
-    <div class="att-summary">
-      <span class="att-chip att-present">حضر: ${[...presentIds].filter(id => students.find(s => s.id === id)).length}</span>
-      <span class="att-chip att-absent">غائب: ${students.length - [...presentIds].filter(id => students.find(s => s.id === id)).length}</span>
-    </div>
-    <div class="table-wrap"><table>
-      <thead><tr><th>الاسم</th><th>الفصل</th><th>الحالة</th><th></th></tr></thead>
-      <tbody>${students.map(s => `
-        <tr id="att-row-${s.id}">
-          <td>${escHtml(s.full_name)}</td>
-          <td>${escHtml(s.classes?.name || '-')}</td>
-          <td>${presentIds.has(s.id) ? '<span class="badge badge-success">حضر</span>' : '<span class="badge badge-danger">غائب</span>'}</td>
-          <td>${!presentIds.has(s.id) ? `<button class="btn-sm btn-success" onclick="markManualAtt('${s.id}','student','${s.class_id}')">تسجيل حضور</button>` : ''}</td>
-        </tr>
-      `).join('')}</tbody>
-    </table></div>
-  `;
+  attStudentsCache = students || [];
+  attPresentIdsCache = new Set();
+  if (attStudentsCache.length) {
+    const today = todayCairo();
+    const { data: todayAtt = [] } = await sb.from('attendance').select('person_id').eq('person_type', 'student').gte('attended_at', dayStart(today));
+    attPresentIdsCache = new Set(todayAtt?.map(a => a.person_id) || []);
+  }
+  renderAttStudents();
 }
 
 const attNameCache = {};
+
+// STEP 6 (B7): كاش قايمة الحضور اليدوي — البحث بالاسم بيفلتر من الكاش من غير إعادة تحميل،
+// وحالة الحضور محفوظة في attPresentIdsCache فمش بتتأثر بالفلترة
+let attStudentsCache = [];
+let attPresentIdsCache = new Set();
+
+function renderAttStudents() {
+  const listDiv = document.getElementById('att-students-list');
+  if (!listDiv) return;
+  const students = attStudentsCache;
+  const presentIds = attPresentIdsCache;
+  if (!students.length) { listDiv.innerHTML = '<div class="empty"><p>لا يوجد مخدومين</p></div>'; return; }
+  const q = (document.getElementById('att-student-search')?.value || '').trim().toLowerCase();
+  const rows = q ? students.filter(x => x.full_name.toLowerCase().includes(q)) : students;
+  const presentCount = [...presentIds].filter(id => students.find(x => x.id === id)).length;
+  listDiv.innerHTML = `
+    <div class="att-summary">
+      <span class="att-chip att-present">حضر: ${presentCount}</span>
+      <span class="att-chip att-absent">غائب: ${students.length - presentCount}</span>
+    </div>
+    ${rows.length ? `<div class="table-wrap"><table>
+      <thead><tr><th>الاسم</th><th>الفصل</th><th>الحالة</th><th></th></tr></thead>
+      <tbody>${rows.map(x => `
+        <tr id="att-row-${x.id}">
+          <td>${escHtml(x.full_name)}</td>
+          <td>${escHtml(x.classes?.name || '-')}</td>
+          <td>${presentIds.has(x.id) ? '<span class="badge badge-success">حضر</span>' : '<span class="badge badge-danger">غائب</span>'}</td>
+          <td>${!presentIds.has(x.id) ? `<button class="btn-sm btn-success" onclick="markManualAtt('${x.id}','student','${x.class_id}')">تسجيل حضور</button>` : ''}</td>
+        </tr>
+      `).join('')}</tbody>
+    </table></div>` : '<div class="empty"><p>لا يوجد نتائج للبحث</p></div>'}
+  `;
+}
 async function markManualAtt(personId, personType, classId) {
   const attOpen = await checkAttendanceOpen();
   if (!attOpen) { toastMsg('🔒 الحضور مقفول دلوقتي', 'info'); return; }
@@ -3262,6 +3417,9 @@ async function loadServantAttHistory() {
 }
 
 // ========== SERVANTS ==========
+let servantsRowsCache = [];
+let servantsFilteredCache = [];
+
 async function loadServants() {
   const sectorId = document.getElementById('servant-sector-filter').value;
   const classId = document.getElementById('servant-class-filter').value;
@@ -3284,9 +3442,19 @@ async function loadServants() {
     ...(profileServants || []).map(s => ({ ...s, source: 'profiles', unique_code: s.unique_code || s.id.substring(0,6).toUpperCase() }))
   ];
 
+  servantsRowsCache = servants;
+  renderServantsList();
+}
+
+function renderServantsList() {
   const tbody = document.getElementById('servants-tbody');
-  if (!servants.length) { tbody.innerHTML = '<tr><td colspan="6"><div class="empty"><p>لا يوجد خدام</p></div></td></tr>'; return; }
-  tbody.innerHTML = servants.map(s => `
+  const q = (document.getElementById('servant-search')?.value || '').trim().toLowerCase();
+  const rows = q ? servantsRowsCache.filter(x => x.full_name.toLowerCase().includes(q) || (x.phone || '').includes(q)) : servantsRowsCache;
+  servantsFilteredCache = rows;
+  const cnt = document.getElementById('servants-count');
+  if (cnt) cnt.textContent = 'العدد: ' + rows.length;
+  if (!rows.length) { tbody.innerHTML = '<tr><td colspan="6"><div class="empty"><p>لا يوجد خدام</p></div></td></tr>'; return; }
+  tbody.innerHTML = rows.map(s => `
     <tr>
       <td>
         <strong>${escHtml(s.full_name)}</strong>
@@ -3302,12 +3470,20 @@ async function loadServants() {
           <button class="btn-sm btn-warning" onclick="openEditServantModal('${s.id}')">تعديل</button>
           <button class="btn-sm btn-danger" onclick="deleteServant('${s.id}')" style="margin-right:0.25rem">حذف</button>
         ` : `
-          <button class="btn-sm btn-warning" onclick="viewStudent('${s.id}')">عرض</button>
+          <button class="btn-sm btn-warning" onclick="viewStudent('${s.id}', 'servants-page', 'servants')">عرض</button>
+          <button class="btn-sm btn-outline" onclick="editPersonFromList('${s.id}')" style="margin-right:0.25rem">تعديل</button>
+          <button class="btn-sm btn-danger" onclick="deletePersonFromList('${s.id}')" style="margin-right:0.25rem">حذف</button>
         `}
       </td>
     </tr>
   `).join('');
 }
+
+function filterServants() { renderServantsList(); }
+
+// تعديل/حذف صفوف profiles من قايمة الخدام بيعدّي على صفحة التفاصيل وآلياتها الموجودة أصلاً
+async function editPersonFromList(id) { await viewStudent(id, 'servants-page', 'servants'); openEditStudentModal(); }
+async function deletePersonFromList(id) { await viewStudent(id, 'servants-page', 'servants'); deleteStudent(); }
 
 function openAddServantModal() {
   document.getElementById('servant-name-input').value = '';
@@ -3414,7 +3590,7 @@ async function saveEditServant() {
       if (!sectorId) { toastMsg('الفصل ده مش موجود. اختار القطاع الأول علشان يتعمل فصل جديد بالاسم ده', 'info'); return; }
       if (!(await confirmDialog('الفصل "' + className + '" مش موجود في القطاع ده. تعمله فصل جديد؟', false))) return;
       const { data: newCls, error: clsErr } = await sb.from('classes').insert({ name: className, sector_id: sectorId }).select().single();
-      if (clsErr) { toastMsg('تعذر إنشاء الفصل: ' + clsErr.message, 'error'); return; }
+      if (clsErr) { toastMsg('تعذر إنشاء الفصل: ' + friendlyError(clsErr), 'error'); return; }
       allClasses.push(newCls);
       classId = newCls.id;
     }
@@ -3429,7 +3605,7 @@ async function saveEditServant() {
     class_id: classId
   }).eq('id', id).select();
 
-  if (error) { toastMsg('حصل خطأ: ' + error.message, 'error'); return; }
+  if (error) { toastMsg(friendlyError(error), 'error'); return; }
   if (!updated || !updated.length) { toastMsg('التعديل ما اتحفظش في الداتابيز. غالبًا صلاحيات Supabase (RLS) بتمنع التعديل على جدول servants', 'error'); return; }
   logActivity('تعديل بيانات خادم', name);
   hideModal('edit-servant-modal');
@@ -3456,6 +3632,8 @@ function showServantQR(id, name, code) {
 function printServantQR() { window.print(); }
 
 // ========== VISITS ==========
+let visitsRowsCache = [];
+
 async function loadVisits() {
   const classId = document.getElementById('visit-class-filter').value;
   const date = document.getElementById('visit-date-filter').value;
@@ -3476,7 +3654,7 @@ async function loadVisits() {
 
   if (allowedStudentIds) {
     if (allowedStudentIds.length) query = query.in('student_id', allowedStudentIds);
-    else { document.getElementById('visits-list').innerHTML = '<div class="empty"><div class="empty-icon">🏠</div><p>لا يوجد افتقاد</p></div>'; return; }
+    else { visitsRowsCache = []; const _vc0 = document.getElementById('visits-count'); if (_vc0) _vc0.textContent = 'العدد: 0'; document.getElementById('visits-list').innerHTML = '<div class="empty"><div class="empty-icon">🏠</div><p>لا يوجد افتقاد</p></div>'; return; }
   }
 
   if (classId) {
@@ -3488,6 +3666,9 @@ async function loadVisits() {
   if (type) query = query.eq('visit_type', type);
 
   const { data = [] } = await query;
+  visitsRowsCache = data || [];
+  const _vc = document.getElementById('visits-count');
+  if (_vc) _vc.textContent = 'العدد: ' + visitsRowsCache.length;
   const listDiv = document.getElementById('visits-list');
   listDiv.innerHTML = data?.length ? data.map(v => `
     <div class="visit-card visit-type-${v.visit_type}">
@@ -3543,7 +3724,7 @@ async function saveVisit() {
 async function deleteVisit(id) {
   if (!(await confirmDialog('هتحذف الافتقاد ده؟', true))) return;
   const { error } = await sb.from('visits').delete().eq('id', id);
-  if (error) { toastMsg('حصل مشكلة في الحذف: ' + error.message, 'error'); return; }
+  if (error) { toastMsg(friendlyError(error), 'error'); return; }
   logActivity('حذف افتقاد', id);
   loadVisits();
   if (currentStudentId) loadStudentDetail(currentStudentId);
@@ -3553,7 +3734,7 @@ async function deleteAllVisits() {
   if (!(await confirmDialog('⚠️ تحذير: أنت على وشك حذف جميع سجلات الافتقاد بالكامل! هل أنت متأكد؟', true))) return;
   if (!(await confirmDialog('تأكيد أخير: هل تريد مسح كل البيانات فعلاً؟ الخطوة دي مش بترجع!', true))) return;
   const { error } = await sb.from('visits').delete().neq('id', '00000000-0000-0000-0000-000000000000');
-  if (error) { toastMsg('خطأ في الحذف: ' + error.message, 'error'); return; }
+  if (error) { toastMsg(friendlyError(error), 'error'); return; }
   logActivity('حذف كل سجلات الافتقاد', '');
   toastMsg('✅ تم حذف جميع سجلات الافتقاد بنجاح.', 'success');
   loadVisits();
@@ -3606,7 +3787,7 @@ async function saveTask() {
   const classId = document.getElementById('task-class-input').value;
   if (!title) { toastMsg('ادخل عنوان المهمة', 'info'); return; }
   const { error } = await sb.from('tasks').insert({ title, description: desc || null, points, class_id: classId || null });
-  if (error) { toastMsg('حصل خطأ أثناء حفظ المهمة: ' + error.message, 'error'); return; }
+  if (error) { toastMsg('حصل خطأ أثناء حفظ المهمة: ' + friendlyError(error), 'error'); return; }
   logActivity('إضافة مهمة', title);
   hideModal('task-modal');
   loadTasks();
@@ -3652,26 +3833,46 @@ function getApprovalScope() {
   return { role: currentProfile?.role, class_id: currentProfile?.class_id, sector_id: currentProfile?.sector_id };
 }
 
+let approvalsRows = [];
+
 async function loadApprovals() {
   const listDiv = document.getElementById('approvals-list');
+  const countEl = document.getElementById('approvals-count');
   const scope = getApprovalScope();
   let query = sb.from('profiles').select('*, classes(name), sectors(name)').eq('role', 'student').eq('approved', false).order('created_at');
   if (scope.role === 'servant') {
-    if (!scope.class_id) { listDiv.innerHTML = '<div class="empty"><p>مفيش فصل متسجل لك</p></div>'; return; }
+    if (!scope.class_id) { approvalsRows = []; if (countEl) countEl.textContent = 'عدد الطلبات: 0'; listDiv.innerHTML = '<div class="empty"><p>مفيش فصل متسجل لك</p></div>'; return; }
     query = query.eq('class_id', scope.class_id);
   } else if (scope.role === 'sector_leader') {
-    if (!scope.sector_id) { listDiv.innerHTML = '<div class="empty"><p>مفيش قطاع متسجل لك</p></div>'; return; }
+    if (!scope.sector_id) { approvalsRows = []; if (countEl) countEl.textContent = 'عدد الطلبات: 0'; listDiv.innerHTML = '<div class="empty"><p>مفيش قطاع متسجل لك</p></div>'; return; }
     query = query.eq('sector_id', scope.sector_id);
   }
   const { data = [], error } = await query;
-  if (error) { listDiv.innerHTML = '<div class="msg msg-error">حصل خطأ: ' + escHtml(error.message) + '</div>'; return; }
-  if (!data?.length) { listDiv.innerHTML = '<div class="empty"><div class="empty-icon">✅</div><p>لا يوجد طلبات انتظار</p></div>'; return; }
-  listDiv.innerHTML = data.map(s => `
+  if (error) { listDiv.innerHTML = '<div class="msg msg-error">' + friendlyError(error) + '</div>'; return; }
+  approvalsRows = data || [];
+  const classSel = document.getElementById('approvals-class-filter');
+  if (classSel) {
+    const cur = classSel.value;
+    classSel.innerHTML = '<option value="">كل الفصول</option>' + allClasses.map(c => `<option value="${c.id}">${escHtml(c.name)}</option>`).join('');
+    if (cur) classSel.value = cur;
+  }
+  renderApprovals();
+}
+
+function renderApprovals() {
+  const listDiv = document.getElementById('approvals-list');
+  const q = (document.getElementById('approvals-search')?.value || '').trim().toLowerCase();
+  const classId = document.getElementById('approvals-class-filter')?.value || '';
+  const rows = approvalsRows.filter(x => (!q || x.full_name.toLowerCase().includes(q)) && (!classId || x.class_id === classId));
+  const countEl = document.getElementById('approvals-count');
+  if (countEl) countEl.textContent = 'عدد الطلبات: ' + rows.length;
+  if (!rows.length) { listDiv.innerHTML = '<div class="empty"><div class="empty-icon">✅</div><p>لا يوجد طلبات انتظار</p></div>'; return; }
+  listDiv.innerHTML = rows.map(s => `
     <div class="pending-card">
       <div class="pending-info">
         <div class="pending-name">${escHtml(s.full_name)}</div>
         <div class="pending-detail">${escHtml(s.classes?.name || '')} · ${escHtml(s.sectors?.name || '')} · ${escHtml(s.phone || '')}</div>
-        <div class="pending-detail">كود: <strong>${s.unique_code}</strong></div>
+        <div class="pending-detail">كود: <strong>${escHtml(s.unique_code || '')}</strong></div>
       </div>
       <div class="pending-actions">
         <button class="btn-sm btn-success" onclick="approveStudent('${s.id}')">✓ موافقة</button>
@@ -3681,9 +3882,11 @@ async function loadApprovals() {
   `).join('');
 }
 
+function filterApprovals() { renderApprovals(); }
+
 async function approveStudent(id) {
   const { data, error } = await sb.from('profiles').update({ approved: true }).eq('id', id).select();
-  if (error) { toastMsg('حصل خطأ: ' + error.message, 'error'); return; }
+  if (error) { toastMsg(friendlyError(error), 'error'); return; }
   if (!data || !data.length) { toastMsg('الموافقة ما اتحفظتش. غالبًا اتوافق عليه قبل كده من حد تاني، أو صلاحيات Supabase (RLS) بتمنع', 'error'); loadApprovals(); return; }
   logActivity('الموافقة على مخدوم', data[0]?.full_name || id);
   addNotification(id, 'student', 'approved', 'تم قبولك ✅', 'أهلاً بيك في مدرسة الطغمات السمائية للشمامسة 💙');
@@ -3695,7 +3898,7 @@ async function rejectStudent(id) {
   const { data: _pr } = await sb.from('profiles').select('full_name').eq('id', id).maybeSingle();
   const { error } = await sb.from('profiles').delete().eq('id', id);
   if (!error) logActivity('رفض طلب تسجيل', _pr?.full_name || id);
-  if (error) { toastMsg('حصل خطأ: ' + error.message, 'error'); return; }
+  if (error) { toastMsg(friendlyError(error), 'error'); return; }
   loadApprovals();
 }
 
@@ -3785,7 +3988,7 @@ async function saveSector() {
   let res;
   if (id) res = await sb.from('sectors').update({ name }).eq('id', id).select();
   else res = await sb.from('sectors').insert({ name }).select();
-  if (res.error) { msg.innerHTML = '<div class="msg msg-error">حصل خطأ: ' + escHtml(res.error.message) + '</div>'; return; }
+  if (res.error) { msg.innerHTML = '<div class="msg msg-error">' + friendlyError(res.error) + '</div>'; return; }
   if (!res.data || !res.data.length) { msg.innerHTML = '<div class="msg msg-error">ما اتحفظش. غالبًا صلاحيات Supabase (RLS) بتمنع التعديل على جدول sectors</div>'; return; }
   logActivity(id ? 'تعديل قطاع' : 'إضافة قطاع', name);
   hideModal('sector-modal');
@@ -3832,7 +4035,7 @@ async function saveClass() {
   if (id) res = await sb.from('classes').update(payload).eq('id', id).select();
   else res = await sb.from('classes').insert(payload).select();
 
-  if (res.error) { msg.innerHTML = '<div class="msg msg-error">حصل خطأ: ' + escHtml(res.error.message) + '</div>'; return; }
+  if (res.error) { msg.innerHTML = '<div class="msg msg-error">' + friendlyError(res.error) + '</div>'; return; }
   if (!res.data || !res.data.length) { msg.innerHTML = '<div class="msg msg-error">ما اتحفظش. غالبًا صلاحيات Supabase (RLS) بتمنع التعديل على جدول classes</div>'; return; }
 
   logActivity(id ? 'تعديل فصل' : 'إضافة فصل', name);
@@ -3874,7 +4077,7 @@ async function delFetchItems() {
       sb.from('profiles').select('id, full_name, role, approved').eq('class_id', id).order('full_name'),
       sb.from('servants').select('id, full_name, role').eq('class_id', id).order('full_name')
     ]);
-    if (a.error || b.error) throw new Error((a.error || b.error).message);
+    if (a.error || b.error) throw (a.error || b.error);
     const items = [];
     // خدام النظام (السكرتارية) مش بيتحطوا في فصول، فمش بيظهروا في القايمة
     (a.data || []).filter(p => p.role !== 'system_servant').forEach(p => items.push(delPersonItem('profiles', p, p.role === 'student' ? 'student' : 'servant')));
@@ -3889,7 +4092,7 @@ async function delFetchItems() {
     sb.from('profiles').select('id, full_name, role, approved, class_id').eq('sector_id', id).order('full_name'),
     sb.from('servants').select('id, full_name, role, class_id').eq('sector_id', id).order('full_name')
   ]);
-  if (a.error || b.error) throw new Error((a.error || b.error).message);
+  if (a.error || b.error) throw (a.error || b.error);
   const all = [...(a.data || []).map(p => ({ ...p, _t: 'profiles' })), ...(b.data || []).map(p => ({ ...p, _t: 'servants' }))].filter(p => p.role !== 'system_servant');
   const items = secClasses.map(c => {
     const mine = all.filter(p => p.class_id === c.id);
@@ -3913,7 +4116,7 @@ async function openDeleteModal(type, id) {
       delCtx.tasks = 0;
     }
   } catch (e) {
-    delEl('delete-modal-msg').innerHTML = '<div class="msg msg-error">تعذر تحميل البيانات: ' + escHtml(e.message) + '</div>';
+    delEl('delete-modal-msg').innerHTML = '<div class="msg msg-error">تعذر تحميل البيانات: ' + friendlyError(e) + '</div>';
     return;
   }
   delEl('delete-modal-title').textContent = type === 'class' ? `حذف فصل "${obj.name}"` : `حذف قطاع "${obj.name}"`;
@@ -3988,7 +4191,7 @@ async function delUpdateChunks(table, ids, payload, col = 'id') {
   let done = 0;
   for (let i = 0; i < ids.length; i += 100) {
     const { data, error } = await sb.from(table).update(payload).in(col, ids.slice(i, i + 100)).select('id');
-    if (error) throw new Error(error.message);
+    if (error) throw error;
     done += data?.length || 0;
   }
   return done;
@@ -4040,7 +4243,7 @@ async function delMove(moveAllThenDelete) {
       }
     }
   } catch (e) {
-    msg.innerHTML = '<div class="msg msg-error">حصل خطأ: ' + escHtml(e.message) + '</div>';
+    msg.innerHTML = '<div class="msg msg-error">' + friendlyError(e) + '</div>';
     return;
   }
   if (!moved) { msg.innerHTML = '<div class="msg msg-error">ما اتنقلش حد. غالبًا صلاحيات Supabase (RLS)</div>'; return; }
@@ -4051,7 +4254,7 @@ async function delMove(moveAllThenDelete) {
     if (!isClass) await loadSectors();
     delCtx.items = await delFetchItems();
   } catch (e) {
-    msg.innerHTML = '<div class="msg msg-error">اتنقلوا لكن تعذر تحديث القايمة: ' + escHtml(e.message) + '</div>';
+    msg.innerHTML = '<div class="msg msg-error">اتنقلوا لكن تعذر تحديث القايمة: ' + friendlyError(e) + '</div>';
     return;
   }
   delRender();
@@ -4066,28 +4269,6 @@ async function delMove(moveAllThenDelete) {
   }
 }
 
-const DEL_FIX_SQL = `DO $$
-DECLARE r record;
-BEGIN
-  FOR r IN
-    SELECT con.conname, con.conrelid::regclass AS tbl, att.attname AS col
-    FROM pg_constraint con
-    JOIN pg_attribute att ON att.attrelid = con.conrelid AND att.attnum = con.conkey[1]
-    WHERE con.contype = 'f' AND con.confrelid = 'public.classes'::regclass AND array_length(con.conkey, 1) = 1
-  LOOP
-    EXECUTE format('ALTER TABLE %s ALTER COLUMN %I DROP NOT NULL', r.tbl, r.col);
-    EXECUTE format('ALTER TABLE %s DROP CONSTRAINT %I', r.tbl, r.conname);
-    EXECUTE format('ALTER TABLE %s ADD CONSTRAINT %I FOREIGN KEY (%I) REFERENCES public.classes(id) ON DELETE SET NULL', r.tbl, r.conname, r.col);
-  END LOOP;
-END $$;`;
-
-function delCopyFixSql() {
-  const ta = document.getElementById('del-fix-sql');
-  if (!ta) return;
-  ta.select();
-  try { navigator.clipboard.writeText(ta.value); } catch (e) { document.execCommand('copy'); }
-  toastMsg('اتنسخ ✅ الصقه في Supabase ← SQL Editor ← Run', 'success');
-}
 
 async function delFinalDelete(skipConfirm) {
   if (!delCtx || delCtx.items.length) return;
@@ -4111,14 +4292,9 @@ async function delFinalDelete(skipConfirm) {
   const { data, error } = await sb.from(isClass ? 'classes' : 'sectors').delete().eq('id', delCtx.id).select('id');
   if (error) {
     if (/foreign key/i.test(error.message)) {
-      msg.innerHTML = `<div class="msg msg-error" style="text-align:right;line-height:1.8">
-        ما اتحذفش لأن فيه بيانات قديمة (زي سجلات الحضور) لسه مربوطة بالفصل، وقاعدة البيانات بتمنع الحذف.<br>
-        <b>الحل لمرة واحدة بس:</b> انسخ الكود ده وشغّله في Supabase ← SQL Editor ← Run، وبعدها أي فصل هيتحذف عادي.
-        <textarea id="del-fix-sql" readonly style="width:100%;height:90px;margin-top:0.5rem;direction:ltr;font-size:0.75rem">${escHtml(DEL_FIX_SQL)}</textarea>
-        <button class="btn-sm btn-primary" style="margin-top:0.5rem" onclick="delCopyFixSql()">📋 نسخ الكود</button>
-      </div>`;
+      msg.innerHTML = '<div class="msg msg-error">ما اتحذفش لأن فيه سجلات قديمة مرتبطة بيه. اتأكد إن مفيش بيانات لسه مربوطة وحاول تاني.</div>';
     } else {
-      msg.innerHTML = '<div class="msg msg-error">ما اتحذفش: ' + escHtml(error.message) + '</div>';
+      msg.innerHTML = '<div class="msg msg-error">' + friendlyError(error) + '</div>';
     }
     return;
   }
@@ -4241,7 +4417,7 @@ async function loadAbsentees() {
       </table></div>`;
   } catch (e) {
     console.error(e);
-    box.innerHTML = '<div class="msg msg-error">حصل خطأ في الحساب: ' + escHtml(e.message || e) + '</div>';
+    box.innerHTML = '<div class="msg msg-error">حصل خطأ في الحساب: ' + friendlyError(e) + '</div>';
   }
 }
 
@@ -4325,7 +4501,7 @@ async function loadDashboardCharts() {
     }).join('') : '<div class="empty"><p>لا توجد بيانات</p></div>';
   } catch (e) {
     console.error(e);
-    wk.innerHTML = cl.innerHTML = '<div class="msg msg-error">تعذر تحميل الرسوم: ' + escHtml(e.message || e) + '</div>';
+    wk.innerHTML = cl.innerHTML = '<div class="msg msg-error">تعذر تحميل الرسوم: ' + friendlyError(e) + '</div>';
   }
 }
 
@@ -4383,7 +4559,7 @@ async function sendBirthdayGreeting(personId, kind, name) {
     person_id: personId, person_type: kind, type: 'birthday',
     title: 'كل سنة وانت طيب 🎂', message: `كل سنة وانت طيب يا ${name}! ربنا يحفظك ويبارك حياتك 💙 مدرسة الطغمات السمائية للشمامسة بتحبك ❤️`
   });
-  if (error) { if (btn) btn.disabled = false; toastMsg('ما اتبعتتش: ' + error.message, 'error'); return; }
+  if (error) { if (btn) btn.disabled = false; toastMsg(friendlyError(error), 'error'); return; }
   if (btn) btn.textContent = 'اتبعتت ✅';
   logActivity('تهنئة عيد ميلاد', name);
 }
@@ -4447,7 +4623,7 @@ async function confirmMoveStudents() {
   for (let i = 0; i < ids.length; i += 100) {
     const chunk = ids.slice(i, i + 100);
     const { data, error } = await sb.from('profiles').update({ class_id: targetId, sector_id: target.sector_id }).in('id', chunk).select('id');
-    if (error) { msg.innerHTML = '<div class="msg msg-error">حصل خطأ: ' + escHtml(error.message) + '</div>'; return; }
+    if (error) { msg.innerHTML = '<div class="msg msg-error">' + friendlyError(error) + '</div>'; return; }
     moved += data?.length || 0;
   }
   if (!moved) { msg.innerHTML = '<div class="msg msg-error">ما اتنقلش حد. غالبًا صلاحيات Supabase (RLS)</div>'; return; }
@@ -4539,14 +4715,26 @@ const IMPORT_HEADER_ALIASES = { 'البريد الإلكتروني': 'الإيم
 let importRows = [];       // صفوف الملف بعد الفحص: {name,email,classId,className,sectorId,sectorName,birth,phone,whatsapp,address,gender,ok,error}
 let importSuccesses = [];  // {name, code, email, password}
 let importFailures = [];   // {name, email, reason}
+let importTarget = 'student';  // STEP 6 (C1): هدف الاستيراد الحالي: 'student' | 'servant'
+function importNoun() {
+  return importTarget === 'servant'
+    ? { plural: 'خدام', singular: 'خادم', sheet: 'الخدام', role: 'servant' }
+    : { plural: 'مخدومين', singular: 'مخدوم', sheet: 'المخدومين', role: 'student' };
+}
+function openImportFile(target) {
+  importTarget = target === 'servant' ? 'servant' : 'student';
+  document.getElementById('import-students-file').click();
+}
 
-async function downloadImportTemplate() {
+async function downloadImportTemplate(target) {
+  importTarget = target === 'servant' ? 'servant' : 'student';
+  const noun = importNoun();
   if (!(await xlsxReady())) return;
   const wb = XLSX.utils.book_new();
-  XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet([IMPORT_HEADERS]), 'المخدومين');
+  XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet([IMPORT_HEADERS]), noun.sheet);
   wb.Workbook = { Views: [{ RTL: true }] };
-  XLSX.writeFile(wb, 'قالب-استيراد-المخدومين.xlsx');
-  logActivity('تنزيل قالب استيراد المخدومين', '');
+  XLSX.writeFile(wb, 'قالب-استيراد-' + noun.plural + '.xlsx');
+  logActivity('تنزيل قالب استيراد ' + noun.plural, '');
 }
 
 function importCellText(v) {
@@ -4583,6 +4771,8 @@ async function handleImportFile(input) {
   if (!allSectors.length) await loadSectors();
 
   showModal('import-modal');
+  const _it = document.getElementById('import-modal-title');
+  if (_it) _it.textContent = importTarget === 'servant' ? '📤 استيراد خدام من Excel' : '📤 استيراد مخدومين من Excel';
   const body = document.getElementById('import-body');
   body.innerHTML = '<div class="loading">جاري قراءة الملف...</div>';
   importRows = []; importSuccesses = []; importFailures = [];
@@ -4595,7 +4785,7 @@ async function handleImportFile(input) {
     if (!ws) throw new Error('الملف فاضي');
     rawRows = XLSX.utils.sheet_to_json(ws, { raw: true, defval: '' });
   } catch (e) {
-    body.innerHTML = '<div class="msg msg-error">تعذرت قراءة الملف: ' + escHtml(e.message || e) + '</div>';
+    body.innerHTML = '<div class="msg msg-error">تعذرت قراءة الملف: ' + (e && e.message === 'الملف فاضي' ? 'الملف فاضي' : friendlyError(e)) + '</div>';
     return;
   }
 
@@ -4618,11 +4808,21 @@ async function handleImportFile(input) {
   rows.forEach(r => Object.keys(r).forEach(k => presentCols.add(k)));
   const missingCols = ['الاسم', 'الإيميل', 'الفصل'].filter(h => !presentCols.has(h));
   if (missingCols.length) {
-    body.innerHTML = '<div class="msg msg-error">الملف ناقص أعمدة أساسية: ' + escHtml(missingCols.join('، ')) + '<br>الأعمدة المطلوبة: ' + escHtml(IMPORT_HEADERS.join('، ')) + '<br>تقدر تنزّل «📋 قالب الاستيراد» الجاهز من صفحة المخدومين.</div>';
+    body.innerHTML = '<div class="msg msg-error">الملف ناقص أعمدة أساسية: ' + escHtml(missingCols.join('، ')) + '<br>الأعمدة المطلوبة: ' + escHtml(IMPORT_HEADERS.join('، ')) + '<br>تقدر تنزّل «📋 قالب الاستيراد» الجاهز من صفحة ' + (importTarget === 'servant' ? 'الخدام' : 'المخدومين') + '.</div>';
     return;
   }
 
-  const existingEmails = new Set(allStudents.map(s => (s.email || '').toLowerCase()).filter(Boolean));
+  let existingEmails;
+  if (importTarget === 'servant') {
+    // للخدام: الإيميلات المسجلة أصلاً في profiles (أدوار الخدام) + جدول servants
+    const [{ data: profEmails = [] }, { data: srvEmails = [] }] = await Promise.all([
+      sb.from('profiles').select('email').in('role', ['servant', 'sector_leader', 'priest']),
+      sb.from('servants').select('email')
+    ]);
+    existingEmails = new Set([...(profEmails || []), ...(srvEmails || [])].map(x => (x.email || '').toLowerCase()).filter(Boolean));
+  } else {
+    existingEmails = new Set(allStudents.map(x => (x.email || '').toLowerCase()).filter(Boolean));
+  }
   const seenEmails = new Set();
 
   importRows = rows.map(r => {
@@ -4646,7 +4846,7 @@ async function handleImportFile(input) {
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(out.email)) return fail('الإيميل مش مكتوب صح');
     if (seenEmails.has(out.email)) return fail('الإيميل متكرر في نفس الملف');
     seenEmails.add(out.email);
-    if (existingEmails.has(out.email)) return fail('الإيميل مسجل قبل كده لمخدوم موجود');
+    if (existingEmails.has(out.email)) return fail('الإيميل مسجل قبل كده ل' + importNoun().singular + ' موجود');
 
     const bd = importBirthDate(r['تاريخ الميلاد']);
     if (bd.error) return fail('تاريخ الميلاد مش مفهوم (المطلوب صيغة yyyy-mm-dd أو تاريخ Excel)');
@@ -4699,8 +4899,8 @@ function renderImportPreview() {
   </tr>`).join('');
   body.innerHTML = `
     <div class="msg msg-info" style="margin-bottom:1rem; line-height:1.8">
-      الاستيراد بيضيف مخدومين جداد من ملف Excel. الأعمدة المتوقعة: <b>${escHtml(IMPORT_HEADERS.join('، '))}</b><br>
-      الاسم والإيميل والفصل إلزاميين. كل مخدوم هيتعمله حساب <b>مفعّل ومعتمد على طول</b> وكلمة مرور عشوائية،
+      الاستيراد بيضيف ${importNoun().plural} جداد من ملف Excel. الأعمدة المتوقعة: <b>${escHtml(IMPORT_HEADERS.join('، '))}</b><br>
+      الاسم والإيميل والفصل إلزاميين. كل واحد هيتعمله حساب <b>مفعّل ومعتمد على طول</b> وكلمة مرور عشوائية،
       وهتقدر تنزّل «كشف حسابات» فيه الكود وكلمة المرور لكل واحد بعد الاستيراد. اكتب التليفون كنص عشان الصفر اللي في الأول ما يضيعش.
     </div>
     <p style="margin-bottom:0.75rem">إجمالي الصفوف: <b>${importRows.length}</b> — جاهز للاستيراد: <b>${ready}</b> — فيه مشاكل: <b>${bad}</b></p>
@@ -4751,7 +4951,7 @@ async function startImportStudents() {
     try {
       const { data, error } = await sbImport.auth.signUp({ email: row.email, password, options: { data: { full_name: row.name } } });
       if (error) {
-        importFailures.push({ name: row.name, email: row.email, reason: error.message });
+        importFailures.push({ name: row.name, email: row.email, reason: friendlyError(error) });
       } else if (!data.user) {
         importFailures.push({ name: row.name, email: row.email, reason: 'مفيش رد من خادم التسجيل' });
       } else if (Array.isArray(data.user.identities) && data.user.identities.length === 0) {
@@ -4768,7 +4968,7 @@ async function startImportStudents() {
           whatsapp: row.whatsapp || row.phone,
           sector_id: row.sectorId,
           class_id: row.classId,
-          role: 'student',
+          role: importNoun().role,
           unique_code: code,
           profile_image_url: null,
           birth_cert_url: null,
@@ -4776,21 +4976,22 @@ async function startImportStudents() {
           approved: true
         });
         if (profErr) {
-          importFailures.push({ name: row.name, email: row.email, reason: 'الحساب اتعمل بس البروفايل ما اتحفظش (الحساب موجود في المصادقة): ' + profErr.message });
+          importFailures.push({ name: row.name, email: row.email, reason: 'الحساب اتعمل بس البروفايل ما اتحفظش: ' + friendlyError(profErr) });
         } else {
           importSuccesses.push({ name: row.name, code, email: row.email, password });
         }
       }
     } catch (e) {
-      importFailures.push({ name: row.name, email: row.email, reason: (e && e.message) || String(e) });
+      importFailures.push({ name: row.name, email: row.email, reason: friendlyError(e) });
     }
     renderImportProgress(i + 1, ready.length, importSuccesses.length, importFailures.length);
     if (i < ready.length - 1) await new Promise(res => setTimeout(res, 300));
   }
 
-  logActivity('استيراد مخدومين Excel', importSuccesses.length + ' ناجح، ' + importFailures.length + ' فشل');
+  logActivity('استيراد ' + importNoun().plural + ' Excel', importSuccesses.length + ' ناجح، ' + importFailures.length + ' فشل');
   renderImportResults();
   loadStudents();
+  if (importTarget === 'servant') loadServants();
 }
 
 function renderImportResults() {
@@ -4811,7 +5012,7 @@ function renderImportResults() {
         <tbody>${failTrs}</tbody>
       </table>
     </div>` : ''}
-    <div class="msg msg-info" style="margin-bottom:1rem">⚠️ نزّل كشف الحسابات دلوقتي واحتفظ بيه في مكان آمن — كلمات المرور مش هتظهر تاني. الكشف فيه الاسم والكود والإيميل وكلمة المرور لكل مخدوم اتعمل حسابه.</div>
+    <div class="msg msg-info" style="margin-bottom:1rem">⚠️ نزّل كشف الحسابات دلوقتي واحتفظ بيه في مكان آمن — كلمات المرور مش هتظهر تاني. الكشف فيه الاسم والكود والإيميل وكلمة المرور لكل واحد اتعمل حسابه.</div>
     <div class="form-actions">
       ${importSuccesses.length ? '<button class="btn btn-success" onclick="downloadImportCredentials()">📥 تنزيل كشف الحسابات</button>' : ''}
       <button class="btn" onclick="hideModal('import-modal')" style="background:var(--border)">إغلاق</button>
@@ -4824,7 +5025,7 @@ async function downloadImportCredentials() {
   const rows = importSuccesses.map(s => ({ 'الاسم': s.name, 'الكود': s.code, 'الإيميل': s.email, 'كلمة المرور': s.password }));
   const wb = XLSX.utils.book_new();
   XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(rows), 'الحسابات');
-  saveWorkbook(wb, 'كشف-حسابات-المخدومين');
+  saveWorkbook(wb, importTarget === 'servant' ? 'كشف-حسابات-الخدام' : 'كشف-حسابات-المخدومين');
 }
 
 // ========== لوحة الشرف ==========
@@ -4858,9 +5059,9 @@ async function loadLeaderboard() {
       tasks.forEach(t => { pts[t.student_id] = (pts[t.student_id] || 0) + (t.points_earned || 0); });
       att.forEach(a => { (days[a.person_id] = days[a.person_id] || new Set()).add(cairoDateOf(a.attended_at)); });
       rows = studs.map(x => ({ id: x.id, full_name: x.full_name, class_id: x.class_id, class_name: x.classes?.name || '', profile_image_url: x.profile_image_url, points: pts[x.id] || 0, attendance_days: days[x.id]?.size || 0 }));
-    } catch (e) { box.innerHTML = '<div class="msg msg-error">تعذر التحميل: ' + escHtml(e.message || e) + '</div>'; return; }
+    } catch (e) { box.innerHTML = '<div class="msg msg-error">تعذر التحميل: ' + friendlyError(e) + '</div>'; return; }
   } else {
-    box.innerHTML = '<div class="msg msg-error">لوحة الشرف محتاجة تشغيل ملف SQL الجديد (leaderboard_data) في Supabase</div>';
+    box.innerHTML = '<div class="msg msg-error">تعذر تحميل لوحة الشرف دلوقتي — حاول تاني بعد شوية</div>';
     return;
   }
   lbData = rows;
@@ -4921,8 +5122,15 @@ let activityRows = [];
 async function loadActivity() {
   const box = document.getElementById('activity-content');
   box.innerHTML = '<div class="loading">جاري التحميل...</div>';
-  const { data, error } = await sb.from('activity_log').select('*').order('created_at', { ascending: false }).limit(500);
-  if (error) { box.innerHTML = '<div class="msg msg-error">تعذر تحميل السجل: ' + escHtml(error.message) + '<br>اتأكد إنك شغلت ملف SQL الجديد (جدول activity_log)</div>'; return; }
+  let actQuery = sb.from('activity_log').select('*').order('created_at', { ascending: false }).limit(500);
+  // قائد القطاع يشوف نشاط قطاعه بس: بنجمع IDs بروفايلات القطاع الأول (قراءتهم محصورة في قطاعه أصلاً بـ RLS)
+  if (currentProfile?.role === 'sector_leader' && currentProfile.sector_id && !currentServant) {
+    const { data: sectorPeople = [] } = await sb.from('profiles').select('id').eq('sector_id', currentProfile.sector_id);
+    const ids = (sectorPeople || []).map(p => p.id);
+    actQuery = actQuery.in('user_id', ids.length ? ids : ['00000000-0000-0000-0000-000000000000']);
+  }
+  const { data, error } = await actQuery;
+  if (error) { box.innerHTML = '<div class="msg msg-error">تعذر تحميل السجل: ' + friendlyError(error) + '</div>'; return; }
   activityRows = data || [];
   const users = [...new Set(activityRows.map(r => r.user_name).filter(Boolean))].sort((a, b) => a.localeCompare(b, 'ar'));
   document.getElementById('activity-user').innerHTML = '<option value="">كل المستخدمين</option>' + users.map(u => `<option value="${escHtml(u)}">${escHtml(u)}</option>`).join('');
@@ -4997,7 +5205,16 @@ function _resolveConfirm(val) {
 document.getElementById('confirm-yes-btn').addEventListener('click', () => _resolveConfirm(true));
 document.getElementById('confirm-no-btn').addEventListener('click', () => _resolveConfirm(false));
 document.getElementById('confirm-overlay').addEventListener('click', e => { if (e.target.id === 'confirm-overlay') _resolveConfirm(false); });
-document.addEventListener('keydown', e => { if (e.key === 'Escape' && _confirmResolve) _resolveConfirm(false); });
+document.addEventListener('keydown', e => {
+  if (e.key !== 'Escape') return;
+  if (_confirmResolve) { _resolveConfirm(false); return; }
+  // إغلاق أي مودال مفتوح بنفس طريقة زرار × / الضغط بره (closeModal)
+  const overlay = document.getElementById('modal-overlay');
+  if (overlay && overlay.style.display === 'flex') {
+    overlay.style.display = 'none';
+    overlay.querySelectorAll('.modal').forEach(m => m.style.display = 'none');
+  }
+});
 
 // ========== UTILS ==========
 function generateCode() {
@@ -5381,7 +5598,7 @@ function updateAttControlUI(settings) {
 
 async function toggleAttendance() {
   const { data: current = null, error } = await sb.from('attendance_settings').select('*').maybeSingle();
-  if (error) { toastMsg('حصل خطأ في جلب إعدادات الحضور: ' + error.message, 'error'); return; }
+  if (error) { toastMsg('حصل خطأ في جلب إعدادات الحضور: ' + friendlyError(error), 'error'); return; }
   const newState = current ? !current.is_open : true;
   if (!current) {
     const { error: insErr } = await sb.from('attendance_settings').insert({
@@ -5389,7 +5606,7 @@ async function toggleAttendance() {
       opened_at: new Date().toISOString(),
       opened_by: currentProfile?.id
     });
-    if (insErr) { toastMsg('خطأ في إنشاء إعدادات الحضور: ' + insErr.message, 'error'); return; }
+    if (insErr) { toastMsg('خطأ في إنشاء إعدادات الحضور: ' + friendlyError(insErr), 'error'); return; }
   } else {
     const { error: updErr } = await sb.from('attendance_settings').update({
       is_open: newState,
@@ -5397,7 +5614,7 @@ async function toggleAttendance() {
       closed_at: !newState ? new Date().toISOString() : null,
       opened_by: currentProfile?.id
     }).eq('id', current.id);
-    if (updErr) { toastMsg('خطأ في تحديث حالة الحضور: ' + updErr.message, 'error'); return; }
+    if (updErr) { toastMsg('خطأ في تحديث حالة الحضور: ' + friendlyError(updErr), 'error'); return; }
   }
   logActivity(newState ? 'فتح الحضور' : 'إغلاق الحضور', '');
   loadAttendanceControl();
@@ -5492,7 +5709,7 @@ async function loadNotifications() {
   const person = getCurrentPersonForNotifications();
   if (!person) { listDiv.innerHTML = '<div class="empty"><p>لا يوجد إشعارات</p></div>'; return; }
 
-  showPushEnableSectionIfNeeded();
+  renderPushStatus();
 
   const { data: notifs = [] } = await sb.from('notifications')
     .select('*')
@@ -5616,22 +5833,57 @@ async function registerServiceWorker() {
   }
 }
 
-async function showPushEnableSectionIfNeeded() {
+// STEP 6 (A4): كارت حالة دائم للإشعارات في صفحة الإشعارات
+async function renderPushStatus() {
   const section = document.getElementById('push-enable-section');
-  if (!section) return;
-  const supported = await checkPushSupport();
-  if (!supported) { section.style.display = 'none'; return; }
-
-  if (Notification.permission === 'granted') {
-    // تأكد إن فيه اشتراك فعلاً مسجل، لو مش موجود اعرض الزرار تاني
+  const box = document.getElementById('push-status-content');
+  if (!section || !box) return;
+  section.style.display = 'block';
+  const msgDiv = document.getElementById('push-enable-msg');
+  if (msgDiv) msgDiv.innerHTML = '';
+  const supported = ('Notification' in window) && ('serviceWorker' in navigator) && ('PushManager' in window);
+  if (!supported) {
+    box.innerHTML = '<div style="color:var(--text-muted); font-size:0.9rem; line-height:1.8">المتصفح ده مش بيدعم إشعارات التليفون.<br>جرّب تفتح الموقع من متصفح Chrome على الموبايل.</div>';
+    return;
+  }
+  if (Notification.permission === 'denied') {
+    box.innerHTML = '<div style="color:var(--text-muted); font-size:0.9rem; line-height:1.8">الإشعارات مقفولة من إعدادات المتصفح.<br>عشان ترجع تفعّلها: افتح إعدادات الموقع من المتصفح (علامة القفل أو ⋮ جنب عنوان الموقع) ← الإشعارات ← سماح، وبعدين حدّث الصفحة.</div>';
+    return;
+  }
+  try {
     const reg = await navigator.serviceWorker.getRegistration();
     const existing = reg ? await reg.pushManager.getSubscription() : null;
-    section.style.display = existing ? 'none' : 'block';
-  } else if (Notification.permission === 'denied') {
-    section.style.display = 'none';
-  } else {
-    section.style.display = 'block';
+    if (existing) {
+      box.innerHTML = '<div class="msg msg-success" style="margin-bottom:0.75rem">✅ الإشعارات مفعّلة على الجهاز ده</div>'
+        + '<button class="btn" onclick="disablePushNotifications()" style="width:auto; padding:0.6rem 1.5rem; background:var(--bg); border:1px solid var(--border)">🔕 إيقاف الإشعارات</button>';
+      return;
+    }
+  } catch (e) { console.warn('push status check failed', e); }
+  box.innerHTML = '<div style="margin-bottom:0.75rem; color:var(--text-muted); font-size:0.9rem">فعّل الإشعارات عشان تليفونك يرن لما يجيلك إشعار جديد</div>'
+    + '<button class="btn btn-primary" onclick="enablePushNotifications()" style="width:auto; padding:0.6rem 1.5rem">🔔 فعّل إشعارات التليفون</button>';
+}
+
+async function disablePushNotifications() {
+  const msgDiv = document.getElementById('push-enable-msg');
+  try {
+    const reg = await navigator.serviceWorker.getRegistration();
+    const sub = reg ? await reg.pushManager.getSubscription() : null;
+    if (sub) {
+      // حذف صف الاشتراك المطابق للـ endpoint ثم إلغاء الاشتراك من المتصفح
+      await sb.from('push_subscriptions').delete().eq('endpoint', sub.endpoint);
+      await sub.unsubscribe();
+    } else {
+      // مفيش اشتراك محلي: احذف أي صفوف مسجلة للشخص الحالي
+      const person = getCurrentPersonForNotifications();
+      if (person) await sb.from('push_subscriptions').delete().eq('person_id', person.id).eq('person_type', person.type);
+    }
+    toastMsg('تم إيقاف الإشعارات 🔕', 'success');
+  } catch (e) {
+    console.error(e);
+    if (msgDiv) msgDiv.innerHTML = '<div class="msg msg-error">' + friendlyError(e) + '</div>';
+    return;
   }
+  renderPushStatus();
 }
 
 async function enablePushNotifications() {
@@ -5673,7 +5925,7 @@ async function enablePushNotifications() {
     }, { onConflict: 'endpoint' });
 
     msgDiv.innerHTML = '<div class="msg msg-success">✅ تم تفعيل الإشعارات بنجاح!</div>';
-    document.getElementById('push-enable-section').style.display = 'none';
+    renderPushStatus();
   } catch (e) {
     console.error(e);
     msgDiv.innerHTML = '<div class="msg msg-error">حصل خطأ في تفعيل الإشعارات، حاول تاني</div>';
@@ -6977,7 +7229,7 @@ async function saveQuizSheetUrl() {
     ({ error } = await sb.from('quiz_settings').insert(payload));
   }
 
-  if (error) { msgDiv.innerHTML = '<div class="msg msg-error">خطأ: ' + escHtml(error.message) + '</div>'; return; }
+  if (error) { msgDiv.innerHTML = '<div class="msg msg-error">' + friendlyError(error) + '</div>'; return; }
 
   quizSheetUrls[sectorId] = { bible: urlBible, liturgy: urlLiturgy, coptic: urlCoptic };
   msgDiv.innerHTML = '<div class="msg msg-success">✅ تم الحفظ بنجاح</div>';
@@ -7482,6 +7734,7 @@ function renderProfileDrawer() {
     </div>
     <div class="drawer-actions">
       <button class="btn btn-outline" onclick="document.getElementById('my-photo-input').click()">📷 تغيير الصورة</button>
+      <button class="btn btn-outline" onclick="closeProfileDrawer(); openSecurityModal();">🔑 تغيير كلمة السر</button>
       <button class="btn btn-primary" onclick="closeProfileDrawer(); showMyProfile();">الملف الشخصي الكامل</button>
       <button class="btn btn-drawer-logout" onclick="logout()">خروج</button>
     </div>`;
@@ -7554,7 +7807,11 @@ function renderMyProfilePage() {
         ${myAvatarHtml(p, 'mp-avatar')}
         <div class="mp-name">${escHtml(p.full_name || '')}</div>
         <div class="mp-role">${escHtml(myRoleLabel(p))}</div>
-        <div style="margin-top:0.75rem"><button class="btn-sm btn-outline" onclick="document.getElementById('my-photo-input').click()">📷 تغيير الصورة</button></div>
+        <div style="margin-top:0.75rem; display:flex; gap:0.5rem; justify-content:center; flex-wrap:wrap">
+          <button class="btn-sm btn-outline" onclick="document.getElementById('my-photo-input').click()">📷 تغيير الصورة</button>
+          <button class="btn-sm btn-primary" onclick="openEditMyProfile()">✏️ تعديل بياناتي</button>
+          <button class="btn-sm btn-outline" onclick="openSecurityModal()">🔑 كلمة السر والإيميل</button>
+        </div>
       </div>
       <div class="mp-grid">
         ${item('الكود', p.unique_code)}
@@ -7584,6 +7841,166 @@ async function loadMyProfileStats(p) {
   } catch (e) {
     ptsEl.textContent = '—';
     attEl.textContent = '—';
+  }
+}
+
+
+// ============================================================
+// STEP 6: تعديل البيانات الشخصية + الأمان + تحديث الانتظار + تصدير/نسخة احتياطية
+// ============================================================
+
+// ---------- A1: تعديل بياناتي ----------
+function openEditMyProfile() {
+  const p = myProfileData();
+  if (!p) { toastMsg('لازم تسجل دخولك الأول', 'error'); return; }
+  document.getElementById('edit-my-profile-msg').innerHTML = '';
+  document.getElementById('my-name').value = p.full_name || '';
+  document.getElementById('my-birth').value = p.birth_date || '';
+  document.getElementById('my-address').value = p.address || '';
+  document.getElementById('my-phone').value = p.phone || '';
+  document.getElementById('my-confession').value = p.confession_father || '';
+  const wg = document.getElementById('my-whatsapp-group');
+  if (currentServant && !currentProfile) { wg.style.display = 'none'; }
+  else { wg.style.display = ''; document.getElementById('my-whatsapp').value = p.whatsapp || ''; }
+  showModal('edit-my-profile-modal');
+}
+
+async function saveMyProfile() {
+  const msg = document.getElementById('edit-my-profile-msg');
+  const name = document.getElementById('my-name').value.trim();
+  const phone = document.getElementById('my-phone').value.trim();
+  if (!name || !phone) { msg.innerHTML = '<div class="msg msg-error">الاسم والتليفون مطلوبين</div>'; return; }
+  const payload = {
+    full_name: name,
+    birth_date: document.getElementById('my-birth').value || null,
+    address: document.getElementById('my-address').value.trim() || null,
+    phone: phone,
+    confession_father: document.getElementById('my-confession').value.trim() || null
+  };
+  const isProfiles = !!currentProfile;
+  if (isProfiles) payload.whatsapp = document.getElementById('my-whatsapp').value.trim() || null;
+  const owner = isProfiles ? currentProfile : currentServant;
+  if (!owner) { msg.innerHTML = '<div class="msg msg-error">لازم تسجل دخولك الأول</div>'; return; }
+  const { error } = await sb.from(isProfiles ? 'profiles' : 'servants').update(payload).eq('id', owner.id);
+  if (error) { msg.innerHTML = '<div class="msg msg-error">' + friendlyError(error) + '</div>'; return; }
+  Object.assign(owner, payload);
+  hideModal('edit-my-profile-modal');
+  toastMsg('تم حفظ بياناتك ✅', 'success');
+  setHeaderAvatar();
+  renderProfileDrawer();
+  if (document.getElementById('my-profile-page')?.classList.contains('active')) renderMyProfilePage();
+  if (document.getElementById('profile-page')?.classList.contains('active')) loadMyProfile();
+}
+
+// ---------- A2 + A3: كلمة السر والإيميل ----------
+function openSecurityModal() {
+  document.getElementById('sec-pass-msg').innerHTML = '';
+  document.getElementById('sec-email-msg').innerHTML = '';
+  document.getElementById('sec-new-pass').value = '';
+  document.getElementById('sec-confirm-pass').value = '';
+  document.getElementById('sec-new-email').value = '';
+  document.getElementById('sec-current-email').value = currentUser?.email || myProfileData()?.email || '';
+  showModal('security-modal');
+}
+
+async function changeMyPassword() {
+  const msg = document.getElementById('sec-pass-msg');
+  const pw = document.getElementById('sec-new-pass').value;
+  const pw2 = document.getElementById('sec-confirm-pass').value;
+  if (pw.length < 6) { msg.innerHTML = '<div class="msg msg-error">كلمة السر لازم تكون ٦ أحرف على الأقل</div>'; return; }
+  if (pw !== pw2) { msg.innerHTML = '<div class="msg msg-error">كلمتا السر مش متطابقتين</div>'; return; }
+  const { error } = await sb.auth.updateUser({ password: pw });
+  if (error) { msg.innerHTML = '<div class="msg msg-error">' + authErrorText(error) + '</div>'; return; }
+  hideModal('security-modal');
+  toastMsg('تم تغيير كلمة السر ✅', 'success');
+}
+
+async function changeMyEmail() {
+  const msg = document.getElementById('sec-email-msg');
+  const email = document.getElementById('sec-new-email').value.trim().toLowerCase();
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) { msg.innerHTML = '<div class="msg msg-error">اكتب إيميل صحيح</div>'; return; }
+  const { error } = await sb.auth.updateUser({ email });
+  if (error) { msg.innerHTML = '<div class="msg msg-error">' + authErrorText(error) + '</div>'; return; }
+  // مزامنة تفاؤلية لإيميل البروفايل عشان القوائم تفضل صح (التغيير نفسه بيكمل من لينك التأكيد)
+  try {
+    if (currentProfile) { await sb.from('profiles').update({ email }).eq('id', currentProfile.id); currentProfile.email = email; }
+    else if (currentServant) { await sb.from('servants').update({ email }).eq('id', currentServant.id); currentServant.email = email; }
+  } catch (e) { console.warn('profile email sync failed', e); }
+  hideModal('security-modal');
+  toastMsg('اتبعت لينك تأكيد للإيميل الجديد 📧 التغيير هيكمل أول ما تضغط على اللينك اللي وصلك هناك', 'success');
+}
+
+// ---------- B8: تحديث حالة الانتظار ----------
+async function refreshPendingStatus() {
+  await loadUserProfile();
+  if (document.getElementById('pending-page')?.classList.contains('active')) {
+    toastMsg('لسه في انتظار الموافقة', 'info');
+  }
+}
+
+// ---------- C5: رابط تعيين كلمة السر لشخص (كاهن/مسؤول) ----------
+async function sendPasswordResetForCurrent() {
+  const p = currentDetailPerson;
+  if (!p || !p.email) return;
+  const { error } = await sb.auth.resetPasswordForEmail(p.email, { redirectTo: window.location.origin + window.location.pathname });
+  if (error) { toastMsg(authErrorText(error), 'error'); return; }
+  toastMsg('اتبعت رابط التعيين لإيميل الشخص ✅', 'success');
+  logActivity('إرسال رابط تعيين كلمة السر', p.full_name || '');
+}
+
+// ---------- C2: تصدير الخدام والافتقاد ----------
+async function exportServantsExcel() {
+  if (!(await xlsxReady())) return;
+  const rows = (servantsFilteredCache.length ? servantsFilteredCache : servantsRowsCache).map(x => ({
+    'الاسم': x.full_name || '',
+    'الدور': getRoleLabel(x.role) || x.role || '',
+    'الفصل': x.classes?.name || '',
+    'القطاع': x.sectors?.name || '',
+    'التليفون': x.phone || '',
+    'الإيميل': x.email || '',
+    'الكود': x.unique_code || ''
+  }));
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(rows), 'الخدام');
+  saveWorkbook(wb, 'الخدام');
+  logActivity('تصدير قائمة الخدام Excel', rows.length + ' خادم');
+}
+
+async function exportVisitsExcel() {
+  if (!(await xlsxReady())) return;
+  const rows = visitsRowsCache.map(v => ({
+    'الاسم': v.profiles?.full_name || '',
+    'الفصل': v.profiles?.classes?.name || '',
+    'التاريخ': v.visit_date || '',
+    'النوع': v.visit_type === 'phone' ? 'تليفون' : 'منزل',
+    'ملاحظات': v.notes || ''
+  }));
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(rows), 'الافتقاد');
+  saveWorkbook(wb, 'الافتقاد');
+  logActivity('تصدير الافتقاد Excel', rows.length + ' زيارة');
+}
+
+// ---------- C3: نسخة احتياطية كاملة (كاهن/مسؤول النظام بس) ----------
+async function downloadBackup() {
+  if (!['admin', 'priest'].includes(currentProfile?.role)) { toastMsg('النسخة الاحتياطية متاحة للكاهن ومسؤول النظام بس', 'error'); return; }
+  try {
+    if (!(await xlsxReady())) return;
+    toastMsg('جاري تجهيز النسخة الاحتياطية...', 'info');
+    const tables = ['profiles', 'servants', 'classes', 'sectors', 'attendance', 'visits', 'exams', 'student_tasks', 'tasks'];
+    const wb = XLSX.utils.book_new();
+    const used = new Set();
+    for (const t of tables) {
+      const rows = await fetchAllRows(() => sb.from(t).select('*'));
+      const ws = XLSX.utils.json_to_sheet(rows && rows.length ? rows : [{}]);
+      XLSX.utils.book_append_sheet(wb, ws, safeSheetName(t, used));
+    }
+    saveWorkbook(wb, 'نسخة-احتياطية');
+    logActivity('تنزيل نسخة احتياطية Excel', tables.length + ' جداول');
+    toastMsg('تم تنزيل النسخة الاحتياطية ✅', 'success');
+  } catch (e) {
+    console.error(e);
+    toastMsg(friendlyError(e), 'error');
   }
 }
 
