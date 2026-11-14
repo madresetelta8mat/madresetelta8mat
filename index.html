@@ -43,7 +43,7 @@ function generateQR(elementId, text, size) {
     el.innerHTML = '<img src="' + src + '" width="' + size + '" height="' + size + '" style="' + frame + ';image-rendering:pixelated" alt="QR">';
   } catch (e) {
     const url = 'https://api.qrserver.com/v1/create-qr-code/?size=' + size + 'x' + size + '&data=' + encodeURIComponent(text) + '&format=svg';
-    el.innerHTML = '<img src="' + url + '" width="' + size + '" height="' + size + '" style="' + frame + '" crossorigin="anonymous">';
+    el.innerHTML = '<img alt="QR" src="' + url + '" width="' + size + '" height="' + size + '" style="' + frame + '" crossorigin="anonymous">';
   }
 }
 </script>
@@ -95,6 +95,15 @@ function generateQR(elementId, text, size) {
   .msg-error { background: #fef2f2; color: #dc2626; border: 1px solid #fecaca; }
   .msg-success { background: #f0fdf4; color: #16a34a; border: 1px solid #bbf7d0; }
   .msg-info { background: #eff6ff; color: #1d4ed8; border: 1px solid #bfdbfe; }
+
+  /* TOAST (بديل alert) */
+  #toast-container { position: fixed; top: 1rem; left: 50%; transform: translateX(-50%); z-index: 4000; display: flex; flex-direction: column; gap: 0.5rem; width: min(92vw, 480px); pointer-events: none; }
+  .toast { padding: 0.75rem 1rem; border-radius: 8px; font-size: 0.9rem; text-align: center; box-shadow: var(--shadow); opacity: 0; transform: translateY(-8px); transition: opacity 0.25s, transform 0.25s; white-space: pre-line; }
+  .toast.show { opacity: 1; transform: translateY(0); }
+  .toast-success { background: #f0fdf4; color: #16a34a; border: 1px solid #bbf7d0; }
+  .toast-error { background: #fef2f2; color: #dc2626; border: 1px solid #fecaca; }
+  .toast-info { background: #eff6ff; color: #1d4ed8; border: 1px solid #bfdbfe; }
+  #confirm-overlay .modal { display: block !important; } /* الحوار يتحكم فيه الـ overlay نفسه، بعيدًا عن showModal */
 
   /* HEADER */
   #app { display: none; }
@@ -610,7 +619,7 @@ function generateQR(elementId, text, size) {
             <div style="font-weight:700; font-size:1rem">حالة الحضور</div>
             <div id="att-status-text" style="font-size:0.85rem; color:var(--text-muted); margin-top:0.2rem">جاري التحميل...</div>
           </div>
-          <button id="att-toggle-btn" onclick="toggleAttendance()" class="btn" style="width:auto; padding:0.6rem 1.5rem; font-size:0.95rem">...</button>
+          <button aria-label="تبديل حالة الحضور" id="att-toggle-btn" onclick="toggleAttendance()" class="btn" style="width:auto; padding:0.6rem 1.5rem; font-size:0.95rem">...</button>
         </div>
       </div>
       <div class="tabs" id="att-tabs">
@@ -1296,7 +1305,7 @@ function generateQR(elementId, text, size) {
   <div class="modal" id="visit-modal" style="display:none">
     <div class="modal-title">
       إضافة افتقاد
-      <button class="modal-close" onclick="hideModal('visit-modal')">×</button>
+      <button aria-label="إغلاق" class="modal-close" onclick="hideModal('visit-modal')">×</button>
     </div>
     <div class="form-group">
       <label>المخدوم</label>
@@ -1327,7 +1336,7 @@ function generateQR(elementId, text, size) {
   <div class="modal" id="servant-modal" style="display:none">
     <div class="modal-title">
       إضافة خادم
-      <button class="modal-close" onclick="hideModal('servant-modal')">×</button>
+      <button aria-label="إغلاق" class="modal-close" onclick="hideModal('servant-modal')">×</button>
     </div>
     <div class="form-group">
       <label>الاسم الكامل</label>
@@ -1371,7 +1380,7 @@ function generateQR(elementId, text, size) {
   <div class="modal" id="task-modal" style="display:none">
     <div class="modal-title">
       إضافة مهمة
-      <button class="modal-close" onclick="hideModal('task-modal')">×</button>
+      <button aria-label="إغلاق" class="modal-close" onclick="hideModal('task-modal')">×</button>
     </div>
     <div class="form-group">
       <label>عنوان المهمة</label>
@@ -1399,7 +1408,7 @@ function generateQR(elementId, text, size) {
   <div class="modal" id="edit-servant-modal" style="display:none">
     <div class="modal-title">
       تعديل بيانات خادم
-      <button class="modal-close" onclick="hideModal('edit-servant-modal')">×</button>
+      <button aria-label="إغلاق" class="modal-close" onclick="hideModal('edit-servant-modal')">×</button>
     </div>
     <input type="hidden" id="edit-servant-id">
     <div class="form-group">
@@ -1443,7 +1452,7 @@ function generateQR(elementId, text, size) {
   <div class="modal" id="edit-student-modal" style="display:none">
     <div class="modal-title">
       تعديل بيانات المخدوم
-      <button class="modal-close" onclick="hideModal('edit-student-modal')">×</button>
+      <button aria-label="إغلاق" class="modal-close" onclick="hideModal('edit-student-modal')">×</button>
     </div>
     <input type="hidden" id="edit-student-id">
     <div class="form-group">
@@ -1495,7 +1504,7 @@ function generateQR(elementId, text, size) {
   <div class="modal" id="servant-qr-modal" style="display:none">
     <div class="modal-title">
       كيو آر الخادم
-      <button class="modal-close" onclick="hideModal('servant-qr-modal')">×</button>
+      <button aria-label="إغلاق" class="modal-close" onclick="hideModal('servant-qr-modal')">×</button>
     </div>
     <div class="qr-container" id="servant-qr-display"></div>
     <p id="servant-qr-name" style="text-align:center; font-weight:700; margin-top:0.5rem"></p>
@@ -1509,7 +1518,7 @@ function generateQR(elementId, text, size) {
   <div class="modal" id="move-modal" style="display:none">
     <div class="modal-title">
       <span id="move-modal-title">نقل مخدومين</span>
-      <button class="modal-close" onclick="hideModal('move-modal')">×</button>
+      <button aria-label="إغلاق" class="modal-close" onclick="hideModal('move-modal')">×</button>
     </div>
     <input type="hidden" id="move-mode">
     <div class="form-group" id="move-source-group">
@@ -1532,7 +1541,7 @@ function generateQR(elementId, text, size) {
   <div class="modal" id="import-modal" style="display:none; max-width:850px">
     <div class="modal-title">
       <span>📤 استيراد مخدومين من Excel</span>
-      <button class="modal-close" onclick="hideModal('import-modal')">×</button>
+      <button aria-label="إغلاق" class="modal-close" onclick="hideModal('import-modal')">×</button>
     </div>
     <div id="import-body"></div>
   </div>
@@ -1541,7 +1550,7 @@ function generateQR(elementId, text, size) {
   <div class="modal" id="sector-modal" style="display:none">
     <div class="modal-title">
       <span id="sector-modal-title">قطاع جديد</span>
-      <button class="modal-close" onclick="hideModal('sector-modal')">×</button>
+      <button aria-label="إغلاق" class="modal-close" onclick="hideModal('sector-modal')">×</button>
     </div>
     <input type="hidden" id="sector-edit-id">
     <div class="form-group">
@@ -1559,7 +1568,7 @@ function generateQR(elementId, text, size) {
   <div class="modal" id="class-modal" style="display:none">
     <div class="modal-title">
       <span id="class-modal-title">فصل جديد</span>
-      <button class="modal-close" onclick="hideModal('class-modal')">×</button>
+      <button aria-label="إغلاق" class="modal-close" onclick="hideModal('class-modal')">×</button>
     </div>
     <input type="hidden" id="class-edit-id">
     <div class="form-group">
@@ -1586,7 +1595,7 @@ function generateQR(elementId, text, size) {
   <div class="modal" id="delete-modal" style="display:none">
     <div class="modal-title">
       <span id="delete-modal-title">حذف</span>
-      <button class="modal-close" onclick="hideModal('delete-modal')">×</button>
+      <button aria-label="إغلاق" class="modal-close" onclick="hideModal('delete-modal')">×</button>
     </div>
     <div id="delete-info" style="margin-bottom:1rem; font-weight:600; color:var(--primary); line-height:1.7"></div>
     <div id="delete-move-area">
@@ -1611,7 +1620,7 @@ function generateQR(elementId, text, size) {
   <div class="modal" id="points-modal" style="display:none">
     <div class="modal-title">
       منح نقاط
-      <button class="modal-close" onclick="hideModal('points-modal')">×</button>
+      <button aria-label="إغلاق" class="modal-close" onclick="hideModal('points-modal')">×</button>
     </div>
     <p id="points-task-name" style="margin-bottom:1rem; font-weight:600; color:var(--primary)"></p>
     <div class="form-group">
@@ -1629,6 +1638,19 @@ function generateQR(elementId, text, size) {
   </div>
 
 </div><!-- modal overlay -->
+
+<!-- CONFIRM DIALOG + TOAST (بدائل داخل التطبيق) -->
+<div id="confirm-overlay" class="modal-overlay" style="display:none; z-index:3000">
+  <div class="modal" style="max-width:420px" role="alertdialog" aria-modal="true" aria-describedby="confirm-text">
+    <div class="modal-title">تأكيد</div>
+    <p id="confirm-text" style="line-height:1.8; margin-bottom:1.25rem; white-space:pre-line"></p>
+    <div class="form-actions">
+      <button id="confirm-yes-btn" class="btn btn-primary">تأكيد</button>
+      <button id="confirm-no-btn" class="btn" style="background:var(--border)">إلغاء</button>
+    </div>
+  </div>
+</div>
+<div id="toast-container" aria-live="polite"></div>
 
 <script>
 const SUPABASE_URL = 'https://kxhzxhhssvfucqbexcme.supabase.co';
@@ -2203,7 +2225,7 @@ async function loadServantDashboard() {
   const initials = s.full_name?.split(' ').map(w => w[0]).join('').substring(0, 2) || '؟';
 
   document.getElementById('servant-profile-header').innerHTML = `
-    <div class="profile-avatar">${s.profile_image_url ? `<img src="${escUrl(s.profile_image_url)}">` : initials}</div>
+    <div class="profile-avatar">${s.profile_image_url ? `<img alt="صورة الطالب" src="${escUrl(s.profile_image_url)}">` : initials}</div>
     <div>
       <div class="profile-name">${escHtml(s.full_name)}</div>
       <div style="margin-top:0.25rem"><span class="badge badge-primary">${getRoleLabel(s.role)}</span> <span class="badge badge-info">${escHtml(s.classes?.name || '')}</span></div>
@@ -2333,7 +2355,7 @@ function showCheckinResult(msg, type) {
   div.style.cssText = 'position:fixed;inset:0;display:flex;align-items:center;justify-content:center;background:linear-gradient(135deg,#1a3c6b,#2a5298);padding:2rem';
   div.innerHTML = `
     <div style="background:white;border-radius:20px;padding:2.5rem;text-align:center;max-width:400px;width:100%">
-      <img src="${SCHOOL_LOGO}" style="width:90px;height:90px;object-fit:contain;border-radius:50%;margin-bottom:0.75rem;border:3px solid var(--accent)">
+      <img alt="شعار المدرسة" src="${SCHOOL_LOGO}" style="width:90px;height:90px;object-fit:contain;border-radius:50%;margin-bottom:0.75rem;border:3px solid var(--accent)">
       <div style="font-size:1.2rem;font-weight:700;color:#1a3c6b;margin-bottom:1rem">${msg}</div>
       <div style="color:#6b7280;font-size:0.9rem">مدرسة الطغمات السماوية للشمامسة</div>
       <button onclick="location.href=location.pathname" style="margin-top:1.5rem;padding:0.75rem 2rem;background:#1a3c6b;color:white;border:none;border-radius:8px;font-size:1rem;cursor:pointer;font-family:inherit">رجوع</button>
@@ -2351,7 +2373,7 @@ document.addEventListener('DOMContentLoaded', () => {
       if (!file) return;
       const reader = new FileReader();
       reader.onload = e => {
-        document.getElementById('cp-photo-preview').innerHTML = `<img src="${escUrl(e.target.result)}" style="width:80px;height:80px;border-radius:50%;object-fit:cover;border:3px solid var(--primary)">`;
+        document.getElementById('cp-photo-preview').innerHTML = `<img alt="معاينة الصورة" src="${escUrl(e.target.result)}" style="width:80px;height:80px;border-radius:50%;object-fit:cover;border:3px solid var(--primary)">`;
       };
       reader.readAsDataURL(file);
     });
@@ -2478,12 +2500,12 @@ function applyAssistantAttendanceMode() {
 
 async function toggleAssistant(studentId, makeAssistant) {
   const msg = makeAssistant ? 'هتخلي الشخص ده مساعد؟ هيقدر ياخد الغياب بس.' : 'هتشيل صلاحية المساعد من الشخص ده؟';
-  if (!confirm(msg)) return;
+  if (!(await confirmDialog(msg, false))) return;
   const { data, error } = await sb.from('profiles').update({ is_assistant: makeAssistant }).eq('id', studentId).select();
-  if (error) { alert('حصل خطأ: ' + error.message + '\n(اتأكد إنك شغلت أمر SQL بتاع عمود is_assistant)'); return; }
-  if (!data || !data.length) { alert('التعديل ما اتحفظش. غالبًا صلاحيات Supabase (RLS)'); return; }
+  if (error) { toastMsg('حصل خطأ: ' + error.message + '\n(اتأكد إنك شغلت أمر SQL بتاع عمود is_assistant)', 'error'); return; }
+  if (!data || !data.length) { toastMsg('التعديل ما اتحفظش. غالبًا صلاحيات Supabase (RLS)', 'error'); return; }
   logActivity(makeAssistant ? 'تعيين مساعد' : 'إلغاء مساعد', data[0]?.full_name || studentId);
-  alert(makeAssistant ? '✅ تم تعيينه مساعد' : '✅ تم إلغاء المساعد');
+  toastMsg(makeAssistant ? '✅ تم تعيينه مساعد' : '✅ تم إلغاء المساعد', 'success');
   loadStudentDetail(studentId);
 }
 
@@ -2547,7 +2569,7 @@ async function loadMyProfile() {
   const p = currentProfile;
   const initials = p.full_name?.split(' ').map(w => w[0]).join('').substring(0, 2) || '؟';
   const avatarContent = p.profile_image_url 
-    ? `<img src="${escUrl(p.profile_image_url)}" style="width:100%;height:100%;object-fit:cover;border-radius:50%">` 
+    ? `<img alt="صورة الطالب" src="${escUrl(p.profile_image_url)}" style="width:100%;height:100%;object-fit:cover;border-radius:50%">` 
     : initials;
 
   document.getElementById('profile-header').innerHTML = `
@@ -2687,23 +2709,23 @@ function filterStudents() {
 }
 
 async function deleteStudent() {
-  if (!confirm('هتحذف المخدوم ده وكل بياناته؟ مش هيرجع!')) return;
+  if (!(await confirmDialog('هتحذف المخدوم ده وكل بياناته؟ مش هيرجع!', true))) return;
   const _delName = document.querySelector('#detail-header .profile-name')?.textContent || currentStudentId;
   await sb.rpc('delete_user_completely', { user_id: currentStudentId });
   logActivity('حذف مخدوم', _delName);
-  alert('✅ تم الحذف');
+  toastMsg('✅ تم الحذف', 'success');
   goBack();
   loadStudents();
 }
 
 async function changeStudentRole(studentId) {
   const newRole = document.getElementById('change-role-select').value;
-  if (!confirm('هتغير دور المخدوم ده؟')) return;
+  if (!(await confirmDialog('هتغير دور المخدوم ده؟', false))) return;
   const upd = { role: newRole };
   if (newRole === 'priest' || newRole === 'admin') { upd.class_id = null; upd.sector_id = null; }
   await sb.from('profiles').update(upd).eq('id', studentId);
   logActivity('تغيير دور', `${document.querySelector('#detail-header .profile-name')?.textContent || studentId} ← ${getRoleLabel(newRole)}`);
-  alert('✅ تم تغيير الدور بنجاح!');
+  toastMsg('✅ تم تغيير الدور بنجاح!', 'success');
   loadStudentDetail(studentId);
 }
 
@@ -2720,7 +2742,7 @@ async function loadStudentDetail(studentId) {
 
   const initials = s.full_name?.split(' ').map(w => w[0]).join('').substring(0, 2) || '؟';
   document.getElementById('detail-header').innerHTML = `
-    <div class="profile-avatar">${s.profile_image_url ? `<img src="${escUrl(s.profile_image_url)}">` : initials}</div>
+    <div class="profile-avatar">${s.profile_image_url ? `<img alt="صورة الطالب" src="${escUrl(s.profile_image_url)}">` : initials}</div>
     <div style="flex:1">
       <div class="profile-name">${escHtml(s.full_name)}</div>
       <div class="profile-code">${s.unique_code}</div>
@@ -2852,8 +2874,8 @@ async function saveEditStudent() {
   let sectorId = document.getElementById('edit-student-sector').value;
   const className = document.getElementById('edit-student-class').value.trim();
 
-  if (!name) { alert('الاسم الكامل مطلوب'); return; }
-  if (!className) { alert('اكتب اسم الفصل'); return; }
+  if (!name) { toastMsg('الاسم الكامل مطلوب', 'info'); return; }
+  if (!className) { toastMsg('اكتب اسم الفصل', 'info'); return; }
 
   // دوّر على فصل بنفس الاسم، لو مش موجود اعمل واحد جديد
   let classId = null;
@@ -2863,10 +2885,10 @@ async function saveEditStudent() {
     classId = found.id;
     if (!sectorId) sectorId = found.sector_id || '';
   } else {
-    if (!sectorId) { alert('الفصل ده مش موجود. اختار القطاع الأول علشان يتعمل فصل جديد بالاسم ده'); return; }
-    if (!confirm('الفصل "' + className + '" مش موجود في القطاع ده. تعمله فصل جديد؟')) return;
+    if (!sectorId) { toastMsg('الفصل ده مش موجود. اختار القطاع الأول علشان يتعمل فصل جديد بالاسم ده', 'info'); return; }
+    if (!(await confirmDialog('الفصل "' + className + '" مش موجود في القطاع ده. تعمله فصل جديد؟', false))) return;
     const { data: newCls, error: clsErr } = await sb.from('classes').insert({ name: className, sector_id: sectorId }).select().single();
-    if (clsErr) { alert('تعذر إنشاء الفصل: ' + clsErr.message); return; }
+    if (clsErr) { toastMsg('تعذر إنشاء الفصل: ' + clsErr.message, 'error'); return; }
     allClasses.push(newCls);
     classId = newCls.id;
   }
@@ -2883,17 +2905,17 @@ async function saveEditStudent() {
   }).eq('id', id).select();
 
   if (error) {
-    alert('حصل خطأ أثناء حفظ التعديلات: ' + error.message);
+    toastMsg('حصل خطأ أثناء حفظ التعديلات: ' + error.message, 'error');
     return;
   }
   if (!updated || !updated.length) {
-    alert('التعديل ما اتحفظش في الداتابيز. غالبًا صلاحيات Supabase (RLS) بتمنع التعديل على جدول profiles');
+    toastMsg('التعديل ما اتحفظش في الداتابيز. غالبًا صلاحيات Supabase (RLS) بتمنع التعديل على جدول profiles', 'error');
     return;
   }
 
   hideModal('edit-student-modal');
   logActivity('تعديل بيانات', name);
-  alert('تم تحديث البيانات بنجاح ✅');
+  toastMsg('تم تحديث البيانات بنجاح ✅', 'success');
   await loadStudentDetail(id);
   if (typeof loadStudents === 'function') loadStudents();
 }
@@ -3063,12 +3085,12 @@ async function loadAttStudents() {
 const attNameCache = {};
 async function markManualAtt(personId, personType, classId) {
   const attOpen = await checkAttendanceOpen();
-  if (!attOpen) { alert('🔒 الحضور مقفول دلوقتي'); return; }
+  if (!attOpen) { toastMsg('🔒 الحضور مقفول دلوقتي', 'info'); return; }
 
   if (personType === 'servant') {
     const inChurch = await checkLocation();
     if (!inChurch) {
-      alert('❌ لازم تكون جوه الكنيسة عشان تسجل حضورك!');
+      toastMsg('❌ لازم تكون جوه الكنيسة عشان تسجل حضورك!', 'error');
       return;
     }
   }
@@ -3254,7 +3276,7 @@ async function saveServant() {
   const role = document.getElementById('servant-role-input').value;
   const sectorId = role === 'priest' ? '' : document.getElementById('servant-sector-input').value;
   const classId = role === 'priest' ? '' : document.getElementById('servant-class-input').value;
-  if (!name) { alert('ادخل اسم الخادم'); return; }
+  if (!name) { toastMsg('ادخل اسم الخادم', 'info'); return; }
 
   const code = 'SRV-' + Math.random().toString(36).substring(2, 8).toUpperCase();
   await sb.from('servants').insert({ 
@@ -3274,7 +3296,7 @@ async function saveServant() {
 
 async function openEditServantModal(id) {
   const { data: s } = await sb.from('servants').select('*').eq('id', id).single();
-  if (!s) { alert('مش لاقي بيانات الخادم'); return; }
+  if (!s) { toastMsg('مش لاقي بيانات الخادم', 'error'); return; }
 
   document.getElementById('edit-servant-id').value = s.id;
   document.getElementById('edit-servant-name').value = s.full_name || '';
@@ -3318,7 +3340,7 @@ async function saveEditServant() {
   const role = document.getElementById('edit-servant-role').value;
   let sectorId = role === 'priest' ? '' : document.getElementById('edit-servant-sector').value;
   const className = role === 'priest' ? '' : document.getElementById('edit-servant-class').value.trim();
-  if (!name) { alert('ادخل الاسم'); return; }
+  if (!name) { toastMsg('ادخل الاسم', 'info'); return; }
 
   let classId = null;
   if (className) {
@@ -3330,10 +3352,10 @@ async function saveEditServant() {
       if (!sectorId) sectorId = found.sector_id || '';
     } else {
       // مفيش فصل بالاسم ده: لازم قطاع علشان نعمله
-      if (!sectorId) { alert('الفصل ده مش موجود. اختار القطاع الأول علشان يتعمل فصل جديد بالاسم ده'); return; }
-      if (!confirm('الفصل "' + className + '" مش موجود في القطاع ده. تعمله فصل جديد؟')) return;
+      if (!sectorId) { toastMsg('الفصل ده مش موجود. اختار القطاع الأول علشان يتعمل فصل جديد بالاسم ده', 'info'); return; }
+      if (!(await confirmDialog('الفصل "' + className + '" مش موجود في القطاع ده. تعمله فصل جديد؟', false))) return;
       const { data: newCls, error: clsErr } = await sb.from('classes').insert({ name: className, sector_id: sectorId }).select().single();
-      if (clsErr) { alert('تعذر إنشاء الفصل: ' + clsErr.message); return; }
+      if (clsErr) { toastMsg('تعذر إنشاء الفصل: ' + clsErr.message, 'error'); return; }
       allClasses.push(newCls);
       classId = newCls.id;
     }
@@ -3348,15 +3370,15 @@ async function saveEditServant() {
     class_id: classId
   }).eq('id', id).select();
 
-  if (error) { alert('حصل خطأ: ' + error.message); return; }
-  if (!updated || !updated.length) { alert('التعديل ما اتحفظش في الداتابيز. غالبًا صلاحيات Supabase (RLS) بتمنع التعديل على جدول servants'); return; }
+  if (error) { toastMsg('حصل خطأ: ' + error.message, 'error'); return; }
+  if (!updated || !updated.length) { toastMsg('التعديل ما اتحفظش في الداتابيز. غالبًا صلاحيات Supabase (RLS) بتمنع التعديل على جدول servants', 'error'); return; }
   logActivity('تعديل بيانات خادم', name);
   hideModal('edit-servant-modal');
   loadServants();
 }
 
 async function deleteServant(id) {
-  if (!confirm('هتحذف الخادم ده؟')) return;
+  if (!(await confirmDialog('هتحذف الخادم ده؟', true))) return;
   const { data: _sv } = await sb.from('servants').select('full_name').eq('id', id).maybeSingle();
   await sb.from('servants').delete().eq('id', id);
   logActivity('حذف خادم', _sv?.full_name || id);
@@ -3450,7 +3472,7 @@ async function saveVisit() {
   const date = document.getElementById('visit-date-input').value;
   const type = document.getElementById('visit-type-input').value;
   const notes = document.getElementById('visit-notes-input').value.trim();
-  if (!studentId || !date) { alert('اختر المخدوم والتاريخ'); return; }
+  if (!studentId || !date) { toastMsg('اختر المخدوم والتاريخ', 'info'); return; }
 
   await sb.from('visits').insert({ student_id: studentId, visit_date: date, visit_type: type, notes: notes || null });
   logActivity('تسجيل افتقاد', notes || type);
@@ -3460,21 +3482,21 @@ async function saveVisit() {
 }
 
 async function deleteVisit(id) {
-  if (!confirm('هتحذف الافتقاد ده؟')) return;
+  if (!(await confirmDialog('هتحذف الافتقاد ده؟', true))) return;
   const { error } = await sb.from('visits').delete().eq('id', id);
-  if (error) { alert('حصل مشكلة في الحذف: ' + error.message); return; }
+  if (error) { toastMsg('حصل مشكلة في الحذف: ' + error.message, 'error'); return; }
   logActivity('حذف افتقاد', id);
   loadVisits();
   if (currentStudentId) loadStudentDetail(currentStudentId);
 }
 
 async function deleteAllVisits() {
-  if (!confirm('⚠️ تحذير: أنت على وشك حذف جميع سجلات الافتقاد بالكامل! هل أنت متأكد؟')) return;
-  if (!confirm('تأكيد أخير: هل تريد مسح كل البيانات فعلاً؟ الخطوة دي مش بترجع!')) return;
+  if (!(await confirmDialog('⚠️ تحذير: أنت على وشك حذف جميع سجلات الافتقاد بالكامل! هل أنت متأكد؟', true))) return;
+  if (!(await confirmDialog('تأكيد أخير: هل تريد مسح كل البيانات فعلاً؟ الخطوة دي مش بترجع!', true))) return;
   const { error } = await sb.from('visits').delete().neq('id', '00000000-0000-0000-0000-000000000000');
-  if (error) { alert('خطأ في الحذف: ' + error.message); return; }
+  if (error) { toastMsg('خطأ في الحذف: ' + error.message, 'error'); return; }
   logActivity('حذف كل سجلات الافتقاد', '');
-  alert('✅ تم حذف جميع سجلات الافتقاد بنجاح.');
+  toastMsg('✅ تم حذف جميع سجلات الافتقاد بنجاح.', 'success');
   loadVisits();
 }
 
@@ -3523,16 +3545,16 @@ async function saveTask() {
   const desc = document.getElementById('task-desc-input').value.trim();
   const points = parseInt(document.getElementById('task-points-input').value) || 0;
   const classId = document.getElementById('task-class-input').value;
-  if (!title) { alert('ادخل عنوان المهمة'); return; }
+  if (!title) { toastMsg('ادخل عنوان المهمة', 'info'); return; }
   const { error } = await sb.from('tasks').insert({ title, description: desc || null, points, class_id: classId || null });
-  if (error) { alert('حصل خطأ أثناء حفظ المهمة: ' + error.message); return; }
+  if (error) { toastMsg('حصل خطأ أثناء حفظ المهمة: ' + error.message, 'error'); return; }
   logActivity('إضافة مهمة', title);
   hideModal('task-modal');
   loadTasks();
 }
 
 async function deleteTask(id) {
-  if (!confirm('هتحذف المهمة دي؟')) return;
+  if (!(await confirmDialog('هتحذف المهمة دي؟', true))) return;
   await sb.from('tasks').delete().eq('id', id);
   logActivity('حذف مهمة', id);
   loadTasks();
@@ -3555,11 +3577,11 @@ async function openGivePoints(taskId, taskTitle, classId, defaultPoints) {
 async function savePoints() {
   const studentId = document.getElementById('points-student-select').value;
   const points = parseInt(document.getElementById('points-earned-input').value) || 0;
-  if (!studentId) { alert('اختر المخدوم'); return; }
+  if (!studentId) { toastMsg('اختر المخدوم', 'info'); return; }
   await sb.from('student_tasks').insert({ student_id: studentId, task_id: currentTaskId, points_earned: points, completed: true, completed_at: new Date().toISOString() });
   hideModal('points-modal');
   logActivity('منح نقاط', `${points} نقطة`);
-  alert('تم منح النقاط بنجاح ✅');
+  toastMsg('تم منح النقاط بنجاح ✅', 'success');
 }
 
 // ========== APPROVALS ==========
@@ -3602,19 +3624,19 @@ async function loadApprovals() {
 
 async function approveStudent(id) {
   const { data, error } = await sb.from('profiles').update({ approved: true }).eq('id', id).select();
-  if (error) { alert('حصل خطأ: ' + error.message); return; }
-  if (!data || !data.length) { alert('الموافقة ما اتحفظتش. غالبًا اتوافق عليه قبل كده من حد تاني، أو صلاحيات Supabase (RLS) بتمنع'); loadApprovals(); return; }
+  if (error) { toastMsg('حصل خطأ: ' + error.message, 'error'); return; }
+  if (!data || !data.length) { toastMsg('الموافقة ما اتحفظتش. غالبًا اتوافق عليه قبل كده من حد تاني، أو صلاحيات Supabase (RLS) بتمنع', 'error'); loadApprovals(); return; }
   logActivity('الموافقة على مخدوم', data[0]?.full_name || id);
   addNotification(id, 'student', 'approved', 'تم قبولك ✅', 'أهلاً بيك في مدرسة الطغمات السمائية للشمامسة 💙');
   loadApprovals();
 }
 
 async function rejectStudent(id) {
-  if (!confirm('هتحذف الطلب ده؟')) return;
+  if (!(await confirmDialog('هتحذف الطلب ده؟', true))) return;
   const { data: _pr } = await sb.from('profiles').select('full_name').eq('id', id).maybeSingle();
   const { error } = await sb.from('profiles').delete().eq('id', id);
   if (!error) logActivity('رفض طلب تسجيل', _pr?.full_name || id);
-  if (error) { alert('حصل خطأ: ' + error.message); return; }
+  if (error) { toastMsg('حصل خطأ: ' + error.message, 'error'); return; }
   loadApprovals();
 }
 
@@ -3925,7 +3947,7 @@ async function delMove(moveAllThenDelete) {
   const question = moveAllThenDelete
     ? `هتنقل ${sel.length} إلى "${targetName}" وبعدين تحذف ${isClass ? 'الفصل' : 'القطاع'} "${delCtx.name}". متأكد؟`
     : `هتنقل ${sel.length} إلى "${targetName}"؟`;
-  if (!confirm(question)) return;
+  if (!(await confirmDialog(question, moveAllThenDelete))) return;
 
   msg.innerHTML = '<div class="msg msg-info">جاري النقل...</div>';
   let moved = 0;
@@ -4005,7 +4027,7 @@ function delCopyFixSql() {
   if (!ta) return;
   ta.select();
   try { navigator.clipboard.writeText(ta.value); } catch (e) { document.execCommand('copy'); }
-  alert('اتنسخ ✅ الصقه في Supabase ← SQL Editor ← Run');
+  toastMsg('اتنسخ ✅ الصقه في Supabase ← SQL Editor ← Run', 'success');
 }
 
 async function delFinalDelete(skipConfirm) {
@@ -4013,7 +4035,7 @@ async function delFinalDelete(skipConfirm) {
   const msg = delEl('delete-modal-msg');
   const isClass = delCtx.type === 'class';
   const what = isClass ? 'فصل' : 'قطاع';
-  if (!skipConfirm && !confirm(`هتحذف ${what} "${delCtx.name}" نهائيًا؟`)) return;
+  if (!skipConfirm && !(await confirmDialog(`هتحذف ${what} "${delCtx.name}" نهائيًا؟`, true))) return;
 
   // لو فيه خادم نظام (سكرتارية) مربوط بالفصل/القطاع بالغلط، نفك ربطه عشان ما يمنعش الحذف
   const col = isClass ? 'class_id' : 'sector_id';
@@ -4302,7 +4324,7 @@ async function sendBirthdayGreeting(personId, kind, name) {
     person_id: personId, person_type: kind, type: 'birthday',
     title: 'كل سنة وانت طيب 🎂', message: `كل سنة وانت طيب يا ${name}! ربنا يحفظك ويبارك حياتك 💙 مدرسة الطغمات السمائية للشمامسة بتحبك ❤️`
   });
-  if (error) { if (btn) btn.disabled = false; alert('ما اتبعتتش: ' + error.message); return; }
+  if (error) { if (btn) btn.disabled = false; toastMsg('ما اتبعتتش: ' + error.message, 'error'); return; }
   if (btn) btn.textContent = 'اتبعتت ✅';
   logActivity('تهنئة عيد ميلاد', name);
 }
@@ -4317,7 +4339,7 @@ function classOptionsGrouped(selectedId = '') {
 
 function openMoveModal(mode) {
   if (!canMoveStudents()) return;
-  if (mode === 'selected' && selectedStudentIds.size === 0) { alert('علّم على مخدوم واحد على الأقل الأول'); return; }
+  if (mode === 'selected' && selectedStudentIds.size === 0) { toastMsg('علّم على مخدوم واحد على الأقل الأول', 'info'); return; }
   document.getElementById('move-mode').value = mode;
   document.getElementById('move-modal-msg').innerHTML = '';
   document.getElementById('move-target-class').innerHTML = classOptionsGrouped();
@@ -4359,7 +4381,7 @@ async function confirmMoveStudents() {
     ids = [...selectedStudentIds];
   }
   if (!ids.length) { msg.innerHTML = '<div class="msg msg-error">مفيش مخدومين للنقل</div>'; return; }
-  if (!confirm(`هتنقل ${ids.length} مخدوم إلى "${target.name}"؟`)) return;
+  if (!(await confirmDialog(`هتنقل ${ids.length} مخدوم إلى "${target.name}"؟`, false))) return;
 
   msg.innerHTML = '<div class="msg msg-info">جاري النقل...</div>';
   let moved = 0;
@@ -4373,7 +4395,7 @@ async function confirmMoveStudents() {
   logActivity('نقل مخدومين لفصل', `${moved} مخدوم ← ${target.name}`);
   selectedStudentIds.clear();
   hideModal('move-modal');
-  alert(`✅ تم نقل ${moved} مخدوم إلى ${target.name}`);
+  toastMsg(`✅ تم نقل ${moved} مخدوم إلى ${target.name}`, 'success');
   loadStudents();
 }
 
@@ -4395,7 +4417,7 @@ function loadXLSX() {
 async function xlsxReady() {
   if (typeof XLSX !== 'undefined') return true;
   const ok = await loadXLSX();
-  if (!ok || typeof XLSX === 'undefined') { alert('مكتبة Excel ما اتحمّلتش. اتأكد من الإنترنت وجرب تاني'); return false; }
+  if (!ok || typeof XLSX === 'undefined') { toastMsg('مكتبة Excel ما اتحمّلتش. اتأكد من الإنترنت وجرب تاني', 'error'); return false; }
   return true;
 }
 function safeSheetName(name, used) {
@@ -4412,7 +4434,7 @@ function saveWorkbook(wb, filename) {
 
 async function exportTableToExcel(table, filename, sheetName) {
   if (!(await xlsxReady())) return;
-  if (!table) { alert('مفيش جدول للتصدير'); return; }
+  if (!table) { toastMsg('مفيش جدول للتصدير', 'info'); return; }
   const wb = XLSX.utils.book_new();
   XLSX.utils.book_append_sheet(wb, XLSX.utils.table_to_sheet(table), safeSheetName(sheetName, new Set()));
   saveWorkbook(wb, filename);
@@ -4422,7 +4444,7 @@ async function exportTableToExcel(table, filename, sheetName) {
 async function exportReportExcel() {
   if (!(await xlsxReady())) return;
   const root = document.getElementById('printable-report');
-  if (!root) { alert('ولّد التقرير الأول!'); return; }
+  if (!root) { toastMsg('ولّد التقرير الأول!', 'info'); return; }
   const wb = XLSX.utils.book_new();
   const used = new Set();
   const stats = [...root.querySelectorAll('.stat-card')].map(c => [c.querySelector('.stat-label')?.textContent.trim(), c.querySelector('.stat-num')?.textContent.trim()]);
@@ -4433,7 +4455,7 @@ async function exportReportExcel() {
     const title = card?.querySelector('.card-title')?.textContent || card?.firstElementChild?.textContent || 'جدول ' + (i + 1);
     XLSX.utils.book_append_sheet(wb, XLSX.utils.table_to_sheet(t), safeSheetName(title.replace(/\s+/g, ' ').trim(), used));
   });
-  if (!wb.SheetNames.length) { alert('مفيش جداول في التقرير للتصدير'); return; }
+  if (!wb.SheetNames.length) { toastMsg('مفيش جداول في التقرير للتصدير', 'info'); return; }
   saveWorkbook(wb, 'تقرير');
   logActivity('تصدير تقرير Excel', '');
 }
@@ -4441,7 +4463,7 @@ async function exportReportExcel() {
 async function exportStudentsExcel() {
   if (!(await xlsxReady())) return;
   const list = currentFilteredStudents.length ? currentFilteredStudents : allStudents;
-  if (!list.length) { alert('مفيش مخدومين للتصدير'); return; }
+  if (!list.length) { toastMsg('مفيش مخدومين للتصدير', 'info'); return; }
   const rows = list.map(s => ({
     'الاسم': s.full_name, 'الكود': s.unique_code, 'الفصل': s.classes?.name || '', 'القطاع': s.sectors?.name || '',
     'تاريخ الميلاد': s.birth_date || '', 'التليفون': s.phone || '', 'الواتساب': s.whatsapp || '', 'العنوان': s.address || ''
@@ -4821,7 +4843,7 @@ function renderLeaderboard() {
       <div style="display:flex; align-items:center; gap:0.75rem">
         <div style="width:32px; text-align:center; font-size:1.4rem">${medal}</div>
         <div style="width:40px;height:40px;border-radius:50%;background:var(--primary);display:flex;align-items:center;justify-content:center;font-weight:700;color:var(--accent);overflow:hidden;flex-shrink:0">
-          ${r.profile_image_url ? `<img src="${escHtml(r.profile_image_url)}" style="width:100%;height:100%;object-fit:cover">` : initials}
+          ${r.profile_image_url ? `<img alt="صورة الطالب" src="${escHtml(r.profile_image_url)}" style="width:100%;height:100%;object-fit:cover">` : initials}
         </div>
         <div>
           <div style="font-weight:700">${escHtml(r.full_name)} ${isMe ? '<span class="badge badge-warning">أنت</span>' : ''}</div>
@@ -4884,6 +4906,40 @@ function closeModal(e) {
   }
 }
 
+// ========== TOAST + CONFIRM DIALOG (بدائل alert/confirm) ==========
+function toastMsg(text, type = 'info') {
+  const container = document.getElementById('toast-container');
+  if (!container) return;
+  const el = document.createElement('div');
+  el.className = 'toast toast-' + (type === 'success' || type === 'error' ? type : 'info');
+  el.textContent = text;
+  container.appendChild(el);
+  requestAnimationFrame(() => el.classList.add('show'));
+  const dwell = Math.min(3500 + String(text).length * 60, 12000);
+  setTimeout(() => { el.classList.remove('show'); setTimeout(() => el.remove(), 300); }, dwell);
+}
+
+let _confirmResolve = null;
+function confirmDialog(text, danger = false) {
+  return new Promise(resolve => {
+    if (_confirmResolve) _resolveConfirm(false);
+    _confirmResolve = resolve;
+    document.getElementById('confirm-text').textContent = text;
+    const yesBtn = document.getElementById('confirm-yes-btn');
+    yesBtn.className = 'btn ' + (danger ? 'btn-danger' : 'btn-primary');
+    document.getElementById('confirm-overlay').style.display = 'flex';
+    yesBtn.focus();
+  });
+}
+function _resolveConfirm(val) {
+  document.getElementById('confirm-overlay').style.display = 'none';
+  if (_confirmResolve) { const r = _confirmResolve; _confirmResolve = null; r(val); }
+}
+document.getElementById('confirm-yes-btn').addEventListener('click', () => _resolveConfirm(true));
+document.getElementById('confirm-no-btn').addEventListener('click', () => _resolveConfirm(false));
+document.getElementById('confirm-overlay').addEventListener('click', e => { if (e.target.id === 'confirm-overlay') _resolveConfirm(false); });
+document.addEventListener('keydown', e => { if (e.key === 'Escape' && _confirmResolve) _resolveConfirm(false); });
+
 // ========== UTILS ==========
 function generateCode() {
   const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
@@ -4944,12 +5000,12 @@ function renderServantIdCards(servants) {
       <div style="display:grid; grid-template-columns:repeat(auto-fill, minmax(300px,1fr)); gap:1rem">`;
     sectorServants.forEach(s => {
       const initials = s.full_name?.split(' ').map(w=>w[0]).join('').substring(0,2) || '؟';
-      const photoHtml = s.profile_image_url ? `<img src="${escUrl(s.profile_image_url)}">` : initials;
+      const photoHtml = s.profile_image_url ? `<img alt="صورة الطالب" src="${escUrl(s.profile_image_url)}">` : initials;
       html += `
         <div class="servant-id-card" id="scard-${s.id}">
           <div class="id-card-header">
             <div class="id-card-logo" style="opacity:0.9">مدرسة الطغمات السمائية<br>للشمامسة</div>
-            <img src="${SCHOOL_LOGO}" style="width:44px;height:44px;object-fit:contain;border-radius:50%;border:2px solid #c8a84b;background:white">
+            <img alt="شعار المدرسة" src="${SCHOOL_LOGO}" style="width:44px;height:44px;object-fit:contain;border-radius:50%;border:2px solid #c8a84b;background:white">
           </div>
           <div class="id-card-body">
             <div class="id-card-photo" style="border-color:#c8a84b">${photoHtml}</div>
@@ -5018,14 +5074,14 @@ function renderIdCards(students) {
     `;
     sectorStudents.forEach(s => {
       const initials = s.full_name?.split(' ').map(w=>w[0]).join('').substring(0,2) || '؟';
-      const photoHtml = s.profile_image_url ? `<img src="${escUrl(s.profile_image_url)}">` : initials;
+      const photoHtml = s.profile_image_url ? `<img alt="صورة الطالب" src="${escUrl(s.profile_image_url)}">` : initials;
       const birth = s.birth_date ? new Date(s.birth_date).toLocaleDateString('ar-EG') : '';
       const colorClass = getSectorColor(s.classes?.grade_level || '');
       html += `
         <div class="id-card ${colorClass}" id="card-${s.id}">
           <div class="id-card-header">
             <div class="id-card-logo">مدرسة الطغمات السمائية<br>للشمامسة</div>
-            <img src="${SCHOOL_LOGO}" style="width:44px;height:44px;object-fit:contain;border-radius:50%;border:2px solid var(--accent);background:white">
+            <img alt="شعار المدرسة" src="${SCHOOL_LOGO}" style="width:44px;height:44px;object-fit:contain;border-radius:50%;border:2px solid var(--accent);background:white">
           </div>
           <div class="id-card-body">
             <div class="id-card-photo">${photoHtml}</div>
@@ -5127,7 +5183,7 @@ async function findStudentForExam() {
   const initials = student.full_name?.split(' ').map(w=>w[0]).join('').substring(0,2) || '؟';
   document.getElementById('exam-student-info').innerHTML = `
     <div style="display:flex; align-items:center; gap:1rem; background:var(--bg); border-radius:var(--radius); padding:1rem">
-      <div class="profile-avatar" style="width:50px;height:50px;font-size:1.2rem">${student.profile_image_url ? `<img src="${escUrl(student.profile_image_url)}">` : initials}</div>
+      <div class="profile-avatar" style="width:50px;height:50px;font-size:1.2rem">${student.profile_image_url ? `<img alt="صورة الطالب" src="${escUrl(student.profile_image_url)}">` : initials}</div>
       <div>
         <div style="font-weight:700; font-size:1.1rem">${escHtml(student.full_name)}</div>
         <div style="color:var(--text-muted); font-size:0.85rem">${escHtml(student.classes?.name || '')}</div>
@@ -5148,7 +5204,7 @@ async function findStudentForExam() {
             <input type="number" id="grade-${sub.id}" placeholder="درجة" min="0" style="width:60px; padding:0.3rem; border:1px solid var(--border); border-radius:6px; font-family:inherit; font-size:0.85rem" onclick="event.stopPropagation()">
             <span style="font-size:0.8rem; color:var(--text-muted)">/</span>
             <input type="number" id="maxgrade-${sub.id}" placeholder="من" min="1" value="10" style="width:50px; padding:0.3rem; border:1px solid var(--border); border-radius:6px; font-family:inherit; font-size:0.85rem" onclick="event.stopPropagation()">
-            <button class="btn-sm btn-success" onclick="recordExam('${sub.id}','${escJs(sub.name)}')" style="padding:0.3rem 0.6rem; font-size:0.8rem">✓</button>
+            <button aria-label="تسجيل الامتحان" class="btn-sm btn-success" onclick="recordExam('${sub.id}','${escJs(sub.name)}')" style="padding:0.3rem 0.6rem; font-size:0.8rem">✓</button>
           </div>
         `}
       </div>
@@ -5167,7 +5223,7 @@ async function recordExam(subjectId, subjectName) {
   // Check if already passed
   const { data: existing = null } = await sb.from('exams').select('id').eq('student_id', currentExamStudent.id).eq('subject_id', subjectId).maybeSingle();
   if (existing) {
-    if (!confirm(`${currentExamStudent.full_name} امتحن ${subjectName} قبل كده. هتسجله تاني؟`)) return;
+    if (!(await confirmDialog(`${currentExamStudent.full_name} امتحن ${subjectName} قبل كده. هتسجله تاني؟`, false))) return;
     await sb.from('exams').delete().eq('id', existing.id);
   }
 
@@ -5266,7 +5322,7 @@ function updateAttControlUI(settings) {
 
 async function toggleAttendance() {
   const { data: current = null, error } = await sb.from('attendance_settings').select('*').maybeSingle();
-  if (error) { alert('حصل خطأ في جلب إعدادات الحضور: ' + error.message); return; }
+  if (error) { toastMsg('حصل خطأ في جلب إعدادات الحضور: ' + error.message, 'error'); return; }
   const newState = current ? !current.is_open : true;
   if (!current) {
     const { error: insErr } = await sb.from('attendance_settings').insert({
@@ -5274,7 +5330,7 @@ async function toggleAttendance() {
       opened_at: new Date().toISOString(),
       opened_by: currentProfile?.id
     });
-    if (insErr) { alert('خطأ في إنشاء إعدادات الحضور: ' + insErr.message); return; }
+    if (insErr) { toastMsg('خطأ في إنشاء إعدادات الحضور: ' + insErr.message, 'error'); return; }
   } else {
     const { error: updErr } = await sb.from('attendance_settings').update({
       is_open: newState,
@@ -5282,7 +5338,7 @@ async function toggleAttendance() {
       closed_at: !newState ? new Date().toISOString() : null,
       opened_by: currentProfile?.id
     }).eq('id', current.id);
-    if (updErr) { alert('خطأ في تحديث حالة الحضور: ' + updErr.message); return; }
+    if (updErr) { toastMsg('خطأ في تحديث حالة الحضور: ' + updErr.message, 'error'); return; }
   }
   logActivity(newState ? 'فتح الحضور' : 'إغلاق الحضور', '');
   loadAttendanceControl();
@@ -5594,7 +5650,7 @@ function switchServantsReportTab(tab, e) {
 // ========== SERVANTS WEEKLY REPORT ==========
 async function generateServantsWeeklyReport() {
   const date = document.getElementById('servants-report-date').value;
-  if (!date) { alert('اختار التاريخ الأول'); return; }
+  if (!date) { toastMsg('اختار التاريخ الأول', 'info'); return; }
   const sectorId = document.getElementById('servants-weekly-sector').value;
   const classId = document.getElementById('servants-weekly-class').value;
   const reportDiv = document.getElementById('servants-weekly-content');
@@ -5681,7 +5737,7 @@ async function generateServantsWeeklyReport() {
 // ========== SERVANTS MONTHLY REPORT ==========
 async function generateServantsReport() {
   const monthInput = document.getElementById('servants-report-month').value;
-  if (!monthInput) { alert('اختار الشهر الأول'); return; }
+  if (!monthInput) { toastMsg('اختار الشهر الأول', 'info'); return; }
   const sectorId = document.getElementById('servants-monthly-sector').value;
   const classId = document.getElementById('servants-monthly-class').value;
   const reportDiv = document.getElementById('servants-report-content');
@@ -6062,7 +6118,7 @@ function countSaturdaysInRange(startDate, endDate) {
 
 async function generateMonthlyReport() {
   const monthInput = document.getElementById('monthly-report-month').value; // YYYY-MM
-  if (!monthInput) { alert('اختر الشهر الأول'); return; }
+  if (!monthInput) { toastMsg('اختر الشهر الأول', 'info'); return; }
 
   const reportDiv = document.getElementById('monthly-report-content');
   reportDiv.innerHTML = '<div class="loading">جاري تحضير التقرير الشهري...</div>';
@@ -6216,7 +6272,7 @@ async function generateMonthlyReport() {
   reportDiv.innerHTML = `
     <div id="printable-report">
       <div style="text-align:center; margin-bottom:2rem; padding:1.5rem; background:var(--primary); color:white; border-radius:var(--radius)">
-        <img src="${SCHOOL_LOGO}" style="width:80px;height:80px;object-fit:contain;border-radius:50%;border:3px solid var(--accent);background:white;margin-bottom:0.75rem">
+        <img alt="شعار المدرسة" src="${SCHOOL_LOGO}" style="width:80px;height:80px;object-fit:contain;border-radius:50%;border:3px solid var(--accent);background:white;margin-bottom:0.75rem">
         <div style="font-size:1.5rem; font-weight:800">مدرسة الطغمات السمائية للشمامسة</div>
         <div style="font-size:1rem; margin-top:0.5rem; opacity:0.9">التقرير الشهري - ${monthLabel}</div>
         <div style="font-size:0.85rem; margin-top:0.3rem; opacity:0.75">عدد جمعات الخدمة (أيام السبت) في الشهر: ${saturdaysCount}</div>
@@ -6257,7 +6313,7 @@ function getSectorColor(gradeLevel) {
 // ========== REPORTS ==========
 async function generateReport() {
   const date = document.getElementById('report-date').value;
-  if (!date) { alert('اختر التاريخ الأول'); return; }
+  if (!date) { toastMsg('اختر التاريخ الأول', 'info'); return; }
 
   const reportDiv = document.getElementById('report-content');
   reportDiv.innerHTML = '<div class="loading">جاري تحضير التقرير...</div>';
@@ -6289,7 +6345,7 @@ async function generateReport() {
   let html = `
     <div id="printable-report">
       <div style="text-align:center; margin-bottom:2rem; padding:1.5rem; background:var(--primary); color:white; border-radius:var(--radius)">
-        <img src="${SCHOOL_LOGO}" style="width:80px;height:80px;object-fit:contain;border-radius:50%;border:3px solid var(--accent);background:white;margin-bottom:0.75rem">
+        <img alt="شعار المدرسة" src="${SCHOOL_LOGO}" style="width:80px;height:80px;object-fit:contain;border-radius:50%;border:3px solid var(--accent);background:white;margin-bottom:0.75rem">
         <div style="font-size:1.5rem; font-weight:800">مدرسة الطغمات السمائية للشمامسة</div>
         <div style="font-size:1rem; margin-top:0.5rem; opacity:0.9">تقرير يوم السبت - ${dateLabel}</div>
       </div>
@@ -6415,7 +6471,7 @@ async function generateReport() {
 
 function printReport() {
   const content = document.getElementById('printable-report');
-  if (!content) { alert('ولّد التقرير الأول!'); return; }
+  if (!content) { toastMsg('ولّد التقرير الأول!', 'info'); return; }
   const w = window.open('', '_blank');
   w.document.write(`
     <html dir="rtl"><head>
@@ -6532,7 +6588,7 @@ document.getElementById('reg-photo').addEventListener('change', function() {
   if (!file) return;
   const reader = new FileReader();
   reader.onload = e => {
-    document.getElementById('reg-photo-preview').innerHTML = `<img src="${escUrl(e.target.result)}" style="width:80px; height:80px; border-radius:50%; object-fit:cover; border:3px solid var(--primary)">`;
+    document.getElementById('reg-photo-preview').innerHTML = `<img alt="معاينة الصورة" src="${escUrl(e.target.result)}" style="width:80px; height:80px; border-radius:50%; object-fit:cover; border:3px solid var(--primary)">`;
   };
   reader.readAsDataURL(file);
 });
@@ -6546,7 +6602,7 @@ document.getElementById('reg-birth-cert').addEventListener('change', function() 
   } else {
     const reader = new FileReader();
     reader.onload = e => {
-      document.getElementById('reg-cert-preview').innerHTML = `<img src="${escUrl(e.target.result)}" style="width:120px; height:80px; border-radius:8px; object-fit:cover; border:2px solid var(--border)">`;
+      document.getElementById('reg-cert-preview').innerHTML = `<img alt="معاينة شهادة الميلاد" src="${escUrl(e.target.result)}" style="width:120px; height:80px; border-radius:8px; object-fit:cover; border:2px solid var(--border)">`;
     };
     reader.readAsDataURL(file);
   }
@@ -6700,7 +6756,7 @@ async function loadProgressPage() {
                   <td>
                     <div style="display:flex; align-items:center; gap:0.5rem">
                       <div style="width:32px;height:32px;border-radius:50%;background:var(--primary);display:flex;align-items:center;justify-content:center;font-size:0.75rem;font-weight:700;color:var(--accent);flex-shrink:0;overflow:hidden">
-                        ${s.profile_image_url ? `<img src="${escUrl(s.profile_image_url)}" style="width:100%;height:100%;object-fit:cover">` : initials}
+                        ${s.profile_image_url ? `<img alt="صورة الطالب" src="${escUrl(s.profile_image_url)}" style="width:100%;height:100%;object-fit:cover">` : initials}
                       </div>
                       <strong>${escHtml(s.full_name)}</strong>
                     </div>
@@ -7086,7 +7142,7 @@ async function loadAdminCertificates(container) {
       ${completed.map(s => `
         <div class="card" style="text-align:center; cursor:pointer" onclick="openStudentCertModal('${s.id}')">
           <div class="profile-avatar" style="width:60px;height:60px;font-size:1.3rem;margin:0 auto 0.75rem;overflow:hidden">
-            ${s.profile_image_url ? `<img src="${escUrl(s.profile_image_url)}" style="width:100%;height:100%;object-fit:cover">` : s.full_name?.charAt(0) || '؟'}
+            ${s.profile_image_url ? `<img alt="صورة الطالب" src="${escUrl(s.profile_image_url)}" style="width:100%;height:100%;object-fit:cover">` : s.full_name?.charAt(0) || '؟'}
           </div>
           <div style="font-weight:700">${escHtml(s.full_name)}</div>
           <div style="font-size:0.85rem; color:var(--text-muted); margin:0.25rem 0 0.75rem">${escHtml(s.classes?.name || '')}</div>
@@ -7140,7 +7196,7 @@ async function renderStudentCertificate(container, profile) {
   const today = new Date().toLocaleDateString('ar-EG', { year:'numeric', month:'long', day:'numeric' });
   const possessive = profile.gender === 'female' ? 'حياتها' : 'حياته';
   const photoHtml = profile.profile_image_url
-    ? `<img src="${escUrl(profile.profile_image_url)}" style="width:100%;height:100%;object-fit:cover">`
+    ? `<img alt="صورة الطالب" src="${escUrl(profile.profile_image_url)}" style="width:100%;height:100%;object-fit:cover">`
     : `<div style="width:100%;height:100%;display:flex;align-items:center;justify-content:center;font-size:3rem;color:#9ca3af">👤</div>`;
 
   container.innerHTML = `
@@ -7152,7 +7208,7 @@ async function renderStudentCertificate(container, profile) {
         <div class="cert-v2-right">
           <div class="cert-v2-header">
             <div class="cert-v2-title">شكر وتقدير</div>
-            <img src="${SCHOOL_LOGO}" style="width:60px;height:60px;object-fit:contain;border-radius:50%;background:white">
+            <img alt="شعار المدرسة" src="${SCHOOL_LOGO}" style="width:60px;height:60px;object-fit:contain;border-radius:50%;background:white">
           </div>
           <div class="cert-v2-intro" style="line-height:2.2">تُســـــرّ مدرسة الطغمات السمائية للشمامسة<br>بكنيسة السيده العذراء مريم والقديس العظيم الانبا مقار بشبرا الخيمة<br>أن تتقدم بأسمى التهاني الي</div>
           <div class="cert-v2-name">${escHtml(profile.full_name)}</div>
@@ -7231,7 +7287,7 @@ function showInstallBanner() {
   banner.id = 'pwa-install-banner';
   banner.innerHTML = `
     <div style="display:flex;align-items:center;gap:0.75rem;flex:1">
-      <img src="${SCHOOL_LOGO}" style="width:44px;height:44px;border-radius:10px;object-fit:contain;border:2px solid rgba(255,255,255,0.3)">
+      <img alt="شعار المدرسة" src="${SCHOOL_LOGO}" style="width:44px;height:44px;border-radius:10px;object-fit:contain;border:2px solid rgba(255,255,255,0.3)">
       <div>
         <div style="font-weight:700;font-size:0.95rem">مدرسة الطغمات السمائية</div>
         <div style="font-size:0.8rem;opacity:0.85">ثبّت التطبيق على جهازك للوصول السريع</div>
@@ -7239,7 +7295,7 @@ function showInstallBanner() {
     </div>
     <div style="display:flex;gap:0.5rem;flex-shrink:0">
       <button onclick="installPWA()" style="background:white;color:#1a3c6b;border:none;border-radius:8px;padding:0.5rem 1rem;font-weight:700;font-size:0.9rem;cursor:pointer;font-family:inherit">تثبيت</button>
-      <button onclick="dismissInstallBanner()" style="background:rgba(255,255,255,0.2);color:white;border:none;border-radius:8px;padding:0.5rem 0.75rem;cursor:pointer;font-size:1rem">✕</button>
+      <button aria-label="إغلاق" onclick="dismissInstallBanner()" style="background:rgba(255,255,255,0.2);color:white;border:none;border-radius:8px;padding:0.5rem 0.75rem;cursor:pointer;font-size:1rem">✕</button>
     </div>
   `;
   banner.style.cssText = `
@@ -7284,13 +7340,13 @@ function showIOSInstallHint() {
   banner.id = 'pwa-install-banner';
   banner.innerHTML = `
     <div style="display:flex;align-items:center;gap:0.75rem;flex:1">
-      <img src="${SCHOOL_LOGO}" style="width:44px;height:44px;border-radius:10px;object-fit:contain;border:2px solid rgba(255,255,255,0.3)">
+      <img alt="شعار المدرسة" src="${SCHOOL_LOGO}" style="width:44px;height:44px;border-radius:10px;object-fit:contain;border:2px solid rgba(255,255,255,0.3)">
       <div>
         <div style="font-weight:700;font-size:0.9rem">ثبّت التطبيق على جهازك</div>
         <div style="font-size:0.78rem;opacity:0.9">اضغط <strong>Share</strong> ثم <strong>Add to Home Screen</strong> <span style="font-size:1.1rem">⎋</span></div>
       </div>
     </div>
-    <button onclick="dismissInstallBanner()" style="background:rgba(255,255,255,0.2);color:white;border:none;border-radius:8px;padding:0.5rem 0.75rem;cursor:pointer;font-size:1rem;flex-shrink:0">✕</button>
+    <button aria-label="إغلاق" onclick="dismissInstallBanner()" style="background:rgba(255,255,255,0.2);color:white;border:none;border-radius:8px;padding:0.5rem 0.75rem;cursor:pointer;font-size:1rem;flex-shrink:0">✕</button>
   `;
   banner.style.cssText = `
     position:fixed;bottom:0;left:0;right:0;z-index:9999;
