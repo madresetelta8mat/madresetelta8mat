@@ -606,6 +606,30 @@ function generateQR(elementId, text, size) {
         <p style="margin-top:0.75rem; font-size:0.9rem">هتدخل تلقائيًا أول ما تتوافق عليك</p>
       </div>
     </div>
+    <!-- COMPLETE PROFILE GATE (Step 11) -->
+    <div id="complete-profile-page" class="page">
+      <div class="pending-banner">
+        <h2>📋 أكمل بياناتك</h2>
+        <p>أهلًا بيك! عشان تدخل، لازم تكمل البيانات الناقصة دي الأول:</p>
+        <div id="gate-photo-block" style="margin-top:1.25rem">
+          <p style="font-weight:700; font-size:1rem">📷 صورتك الشخصية</p>
+          <p style="font-size:0.9rem">ضيف صورة واضحة ليك — هتظهر في بروفايلك وعلى بطاقتك</p>
+          <img id="gate-photo-preview" alt="صورتك" style="display:none; width:96px; height:96px; border-radius:50%; object-fit:cover; margin:0.5rem auto; border:3px solid var(--accent)">
+          <br>
+          <button class="btn btn-primary" onclick="document.getElementById('gate-photo-input').click()" style="width:auto; padding:0.6rem 1.5rem">📷 اختر صورة</button>
+          <p id="gate-photo-done" style="display:none; color:#16a34a; font-weight:700; margin-top:0.5rem">✅ صورتك جاهزة</p>
+        </div>
+        <div id="gate-phone-block" style="margin-top:1.25rem">
+          <p style="font-weight:700; font-size:1rem">📱 رقم موبايلك</p>
+          <input type="tel" id="gate-phone" placeholder="01xxxxxxxxx" dir="ltr" inputmode="numeric" style="text-align:center; font-size:1.05rem; padding:0.6rem; border:1px solid var(--border); border-radius:10px; width:min(280px, 85%); font-family:inherit">
+        </div>
+        <br>
+        <button class="btn btn-primary" onclick="saveCompleteGate()" style="width:auto; padding:0.7rem 2rem">حفظ ودخول ←</button>
+        <p style="margin-top:1rem; font-size:0.9rem"><a href="#" onclick="logout(); return false;" style="color:var(--danger)">تسجيل الخروج</a></p>
+      </div>
+    </div>
+    <input type="file" id="gate-photo-input" accept="image/*" style="display:none" onchange="gatePhotoChanged(this)">
+
 
     <!-- DASHBOARD -->
     <div id="dashboard-page" class="page">
@@ -2657,6 +2681,50 @@ document.addEventListener('DOMContentLoaded', () => {
 });
 
 // ========== APP ==========
+
+// ========== PROFILE COMPLETION GATE (Step 11) ==========
+function profileMissingRequired(p) {
+  if (!p) return [];
+  if (p.role === 'priest' || p.role === 'admin') return [];
+  const missing = [];
+  if (!p.profile_image_url) missing.push('photo');
+  if (!p.phone || !String(p.phone).trim()) missing.push('phone');
+  return missing;
+}
+
+function renderCompleteGate() {
+  const missing = profileMissingRequired(currentProfile);
+  const photoBlock = document.getElementById('gate-photo-block');
+  const phoneBlock = document.getElementById('gate-phone-block');
+  if (photoBlock) photoBlock.style.display = missing.includes('photo') ? 'block' : 'none';
+  if (phoneBlock) phoneBlock.style.display = missing.includes('phone') ? 'block' : 'none';
+  const url = currentProfile?.profile_image_url;
+  const preview = document.getElementById('gate-photo-preview');
+  const done = document.getElementById('gate-photo-done');
+  if (preview && url) { preview.src = url; preview.style.display = 'block'; }
+  if (done) done.style.display = (url && !missing.includes('photo')) ? 'block' : 'none';
+}
+
+async function gatePhotoChanged(input) {
+  await changeMyPhoto(input);
+  renderCompleteGate();
+  if (!profileMissingRequired(currentProfile).length) { toastMsg('بياناتك اكتملت ✅', 'success'); showApp(); }
+}
+
+async function saveCompleteGate() {
+  const missing = profileMissingRequired(currentProfile);
+  if (missing.includes('phone')) {
+    const val = (document.getElementById('gate-phone')?.value || '').replace(/\D/g, '');
+    if (!/^01\d{9}$/.test(val)) { toastMsg('من فضلك اكتب رقم موبايل صحيح — 11 رقم يبدأ بـ 01', 'error'); return; }
+    const { error } = await sb.from('profiles').update({ phone: val }).eq('id', currentProfile.id);
+    if (error) { toastMsg('حصلت مشكلة أثناء الحفظ — حاول مرة أخرى', 'error'); return; }
+    currentProfile.phone = val;
+  }
+  if (profileMissingRequired(currentProfile).length) { renderCompleteGate(); toastMsg('لسه في بيانات ناقصة', 'error'); return; }
+  toastMsg('بياناتك اكتملت ✅', 'success');
+  showApp();
+}
+
 function showApp() {
   document.getElementById('auth-screen').style.display = 'none';
   document.getElementById('app').style.display = 'block';
@@ -2665,6 +2733,14 @@ function showApp() {
   populateSectorDropdowns();
   const name = currentProfile?.full_name || '';
   setHeaderAvatar(currentProfile);
+
+  if (profileMissingRequired(currentProfile).length) {
+    document.getElementById('header-sub').textContent = 'إكمال البيانات';
+    buildNav(['complete']);
+    showPage('complete-profile-page');
+    renderCompleteGate();
+    return;
+  }
 
   if (!currentProfile?.approved && role === 'student') {
     document.getElementById('header-sub').textContent = 'في انتظار الموافقة';
@@ -2725,6 +2801,7 @@ function buildNav(ids, allPages) {
 }
 
 function showPage(pageId, navId) {
+  if (currentProfile && pageId !== 'complete-profile-page' && profileMissingRequired(currentProfile).length) { pageId = 'complete-profile-page'; navId = null; renderCompleteGate(); }
   document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
   document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
   const page = document.getElementById(pageId);
