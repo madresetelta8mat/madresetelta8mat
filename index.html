@@ -3033,8 +3033,8 @@ function renderStudents(students) {
   tbody.innerHTML = students.map(s => `
     <tr>
       ${canMove ? `<td><input type="checkbox" ${selectedStudentIds.has(s.id) ? 'checked' : ''} onchange="toggleStudentSelect('${s.id}', this.checked)"></td>` : ''}
-      <td><strong>${escHtml(s.full_name)}</strong>${s.is_assistant ? ' <span class="badge badge-primary">مساعد</span>' : ''}</td>
-      <td><span class="badge badge-primary">${s.unique_code}</span></td>
+      <td><strong style="cursor:pointer" title="فتح بروفايل المخدوم" onclick="viewStudent('${s.id}')">${escHtml(s.full_name)}</strong>${s.is_assistant ? ' <span class="badge badge-primary">مساعد</span>' : ''}</td>
+      <td><span class="badge badge-primary" style="cursor:pointer" title="فتح بروفايل المخدوم" onclick="viewStudent('${s.id}')">${s.unique_code}</span></td>
       <td>${escHtml(s.classes?.name || '-')}</td>
       <td>${escHtml(s.phone || '-')}</td>
       <td><span class="badge badge-success">موافق عليه</span></td>
@@ -3104,6 +3104,14 @@ async function viewStudent(studentId, fromPage, fromNav) {
   await loadStudentDetail(studentId);
 }
 
+function intlPhone(raw) {
+  let d = String(raw || '').replace(/\D/g, '');
+  if (!d) return '';
+  if (d.startsWith('00')) d = d.slice(2);
+  if (d.startsWith('0')) d = '20' + d.slice(1);
+  return d.length >= 11 ? d : '';
+}
+
 async function loadStudentDetail(studentId) {
   const { data: s = null } = await sb.from('profiles').select('*, classes(name), sectors(name)').eq('id', studentId).single();
   if (!s) return;
@@ -3113,6 +3121,14 @@ async function loadStudentDetail(studentId) {
   if (_delBtn) _delBtn.textContent = '🗑️ حذف ' + (currentDetailRole === 'student' ? 'المخدوم' : currentDetailRole === 'servant' ? 'الخادم' : 'الشخص');
 
   const initials = s.full_name?.split(' ').map(w => w[0]).join('').substring(0, 2) || '؟';
+  const _isStaffViewer = ['servant', 'sector_leader', 'system_servant', 'priest', 'admin'].includes(currentProfile?.role);
+  const _callNum = intlPhone(s.phone || s.whatsapp);
+  const _waNum = intlPhone(s.whatsapp || s.phone);
+  const contactHtml = (_isStaffViewer && s.role === 'student' && (_callNum || _waNum)) ? `<div style="margin-top:0.75rem; display:flex; gap:0.5rem; flex-wrap:wrap">
+        ${_callNum ? `<a class="btn-sm btn-success" style="text-decoration:none; display:inline-block" href="tel:+${_callNum}">📞 اتصال</a>` : ''}
+        ${_waNum ? `<a class="btn-sm" style="text-decoration:none; display:inline-block; background:#25D366; color:#fff" href="https://wa.me/${_waNum}" target="_blank" rel="noopener">💬 واتساب</a>` : ''}
+      </div>` : '';
+
   document.getElementById('detail-header').innerHTML = `
     <div class="profile-avatar">${s.profile_image_url ? `<img alt="صورة الطالب" src="${escUrl(s.profile_image_url)}">` : initials}</div>
     <div style="flex:1">
@@ -3137,6 +3153,7 @@ async function loadStudentDetail(studentId) {
         ${['admin','priest'].includes(currentProfile?.role) && s.email ? `<button class="btn-sm btn-outline" onclick="sendPasswordResetForCurrent()">📧 إرسال رابط تعيين كلمة السر</button>` : ''}
         ${['admin','priest'].includes(currentProfile?.role) ? `<button class="btn-sm btn-outline" onclick="openSetPasswordModal()">🔑 تعيين كلمة سر مباشرة</button>` : ''}
       </div>
+      ${contactHtml}
     </div>
   `;
 
@@ -3466,7 +3483,7 @@ function renderAttStudents() {
       <thead><tr><th>الاسم</th><th>الفصل</th><th>الحالة</th><th></th></tr></thead>
       <tbody>${rows.map(x => `
         <tr id="att-row-${x.id}">
-          <td>${escHtml(x.full_name)}</td>
+          <td><span style="cursor:pointer; font-weight:600" title="فتح بروفايل المخدوم" onclick="viewStudent('${x.id}')">${escHtml(x.full_name)}</span></td>
           <td>${escHtml(x.classes?.name || '-')}</td>
           <td>${presentIds.has(x.id) ? '<span class="badge badge-success">حضر</span>' : '<span class="badge badge-danger">غائب</span>'}</td>
           <td>${!presentIds.has(x.id) ? `<button class="btn-sm btn-success" onclick="markManualAtt('${x.id}','student','${x.class_id}')">تسجيل حضور</button>` : ''}</td>
@@ -3635,7 +3652,7 @@ function renderServantsList() {
   tbody.innerHTML = rows.map(s => `
     <tr>
       <td>
-        <strong>${escHtml(s.full_name)}</strong>
+        <strong>${s.source === 'profiles' ? `<span style="cursor:pointer" title="فتح البروفايل" onclick="viewStudent('${s.id}', 'servants-page', 'servants')">${escHtml(s.full_name)}</span>` : escHtml(s.full_name)}</strong>
         <br><small style="color:var(--text-muted)">${escHtml(s.email || 'لا يوجد إيميل')}</small>
         ${s.source === 'profiles' ? '<br><span class="badge badge-info" style="font-size:0.7rem">من المخدومين</span>' : ''}
       </td>
@@ -4048,7 +4065,7 @@ function renderApprovals() {
   listDiv.innerHTML = rows.map(s => `
     <div class="pending-card">
       <div class="pending-info">
-        <div class="pending-name">${escHtml(s.full_name)}</div>
+        <div class="pending-name" style="cursor:pointer" title="فتح بروفايل المخدوم" onclick="viewStudent('${s.id}')">${escHtml(s.full_name)}</div>
         <div class="pending-detail">${escHtml(s.classes?.name || '')} · ${escHtml(s.sectors?.name || '')} · ${escHtml(s.phone || '')}</div>
         <div class="pending-detail">كود: <strong>${escHtml(s.unique_code || '')}</strong></div>
       </div>
