@@ -276,6 +276,7 @@ function generateQR(elementId, text, size) {
   .idc-photo img { width: 100%; height: 100%; object-fit: cover; }
   .idc-info { flex: 1; min-width: 0; }
   .idc-name { font-size: 15.5px; font-weight: 800; color: #1A3C6B; line-height: 1.35; margin-bottom: 4px; }
+  .idc-name.idc-name-long { font-size: 13px; line-height: 1.25; }
   .idc-chip { display: inline-block; background: var(--sc); color: #fff; font-size: 11px; font-weight: 700; border-radius: 999px; padding: 2px 11px; margin-bottom: 5px; line-height: 1.5; }
   .idc-row { font-size: 11.5px; color: #22314E; margin-top: 2px; line-height: 1.5; }
   .idc-row b { color: #1A3C6B; }
@@ -319,11 +320,14 @@ function generateQR(elementId, text, size) {
     body.printing-fronts .idc, body.printing-backs .idcb { width: 85mm !important; height: 55mm !important; box-shadow: none !important; }
     .idc { display: block !important; }
     .idc-band { height: 42px; }
-    .idc-body { display: block !important; position: relative; height: 140px; padding: 6px 10px 0; }
+    .idc-body { display: block !important; position: relative; height: 144px; padding: 6px 10px 0; }
     .idc-photo { position: absolute; right: 10px; top: 50%; transform: translateY(-50%); width: 72px; height: 72px; }
     .idc-info { margin-right: 90px; margin-left: 102px; }
     .idc-qrpanel { position: absolute; left: 10px; top: 50%; transform: translateY(-50%); }
     .idc-domain { padding-bottom: 5px; }
+    .idc-name { line-height: 1.25; margin-bottom: 1px; }
+    .idc-chip { padding: 2px 10px; margin: 2px 0 4px; }
+    .idc-row { font-size: 11px; line-height: 1.4; }
     .idcb-fb { margin-top: 4px; }
     .idcb-found { position: absolute; left: 14px; right: 14px; bottom: 9px; width: auto; }
   }
@@ -5357,6 +5361,22 @@ function filterServantIdCards() {
 
 const FB_PAGE_URL = 'https://www.facebook.com/profile.php?id=61586362611054';
 
+function idcDisplayNames(list) {
+  const key = s => (s || '').toLowerCase().replace(/[ً-ٰٟ]/g, '').replace(/\s+/g, '');
+  const parts = p => (p.full_name || '').trim().split(/\s+/).filter(Boolean);
+  const twos = list.map(p => parts(p).slice(0, 2).join(' '));
+  const counts = {};
+  twos.forEach(n => { const k = key(n); counts[k] = (counts[k] || 0) + 1; });
+  const map = new Map();
+  list.forEach((p, i) => {
+    const a = parts(p);
+    let d = twos[i];
+    if (counts[key(twos[i])] > 1 && a.length > 2) d = a.slice(0, 3).join(' ');
+    map.set(p, d || p.full_name || '');
+  });
+  return map;
+}
+
 function idCardBackHtml(stageClass, black, qrId) {
   return `<div class="idcb ${black ? 'idc-black' : stageClass}">
     <div>
@@ -5384,6 +5404,7 @@ function idCardBackHtml(stageClass, black, qrId) {
 }
 
 function renderServantIdCards(servants) {
+  const dnMap = idcDisplayNames(servants);
   const grid = document.getElementById('servant-idcards-grid');
   if (!servants.length) { grid.innerHTML = '<div class="empty"><div class="empty-icon">🪪</div><p>لا يوجد خدام</p></div>'; return; }
 
@@ -5414,7 +5435,7 @@ function renderServantIdCards(servants) {
           <div class="idc-body">
             <div class="idc-photo">${photoHtml}</div>
             <div class="idc-info">
-              <div class="idc-name">${escHtml(s.full_name)}</div>
+              <div class="idc-name${(dnMap.get(s) || '').length > 16 ? ' idc-name-long' : ''}">${escHtml(dnMap.get(s) || s.full_name)}</div>
               <div class="idc-chip">${escHtml(getRoleLabel(s.role))}</div>
               <div class="idc-row"><b>الفصل:</b> ${escHtml(s.classes?.name || '')}</div>
               <div class="idc-row"><b>القطاع:</b> ${escHtml(s.sectors?.name || '')}</div>
@@ -5467,6 +5488,7 @@ function filterIdCards() {
 }
 
 function renderIdCards(students) {
+  const dnMap = idcDisplayNames(students);
   const grid = document.getElementById('idcards-grid');
   if (!students.length) { grid.innerHTML = '<div class="empty"><div class="empty-icon">🪪</div><p>لا يوجد مخدومين</p></div>'; return; }
 
@@ -5501,7 +5523,7 @@ function renderIdCards(students) {
           <div class="idc-body">
             <div class="idc-photo">${photoHtml}</div>
             <div class="idc-info">
-              <div class="idc-name">${escHtml(s.full_name)}</div>
+              <div class="idc-name${(dnMap.get(s) || '').length > 16 ? ' idc-name-long' : ''}">${escHtml(dnMap.get(s) || s.full_name)}</div>
               ${s.sectors?.name ? `<div class="idc-chip">${escHtml(s.sectors.name)}</div>` : ''}
               <div class="idc-row"><b>الفصل:</b> ${escHtml(s.classes?.name || '')}</div>
               ${birth ? `<div class="idc-row"><b>تاريخ الميلاد:</b> ${birth}</div>` : ''}
