@@ -25,6 +25,9 @@
 <link rel="icon" href="/icon-192.png">
 <link rel="icon" sizes="512x512" href="/icon-512.png">
 <link rel="apple-touch-icon" href="/icon-192.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Kufi+Arabic:wght@600;800&family=Noto+Naskh+Arabic:wght@600&display=swap" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.119.0"></script>
 <script src="https://cdn.jsdelivr.net/npm/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/qrcode-generator@1.4.4/qrcode.js"></script>
@@ -70,16 +73,63 @@ function generateQR(elementId, text, size) {
   * { box-sizing: border-box; margin: 0; padding: 0; }
   body { font-family: 'Segoe UI', Tahoma, sans-serif; color: var(--text); min-height: 100vh; background-color: #f7f3e9; background-image: url("data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%22150%22%20height%3D%22300%22%20viewBox%3D%220%200%20150%20300%22%3E%3Cg%20opacity%3D%220.23%22%3E%3Cg%20transform%3D%22translate%2875%2075%29%22%3E%3Ccircle%20r%3D%2241.0%22%20fill%3D%22none%22%20stroke%3D%22%23ac883a%22%20stroke-width%3D%225.5%22%2F%3E%3Cpath%20d%3D%22M-10.0%20-31.0%20H10.0%20V31.0%20H-10.0%20Z%22%20fill%3D%22%23ac883a%22%2F%3E%3Cpath%20d%3D%22M-31.0%20-10.0%20H31.0%20V10.0%20H-31.0%20Z%22%20fill%3D%22%23ac883a%22%2F%3E%3Ccircle%20cx%3D%220%22%20cy%3D%22-31.0%22%20r%3D%228.0%22%20fill%3D%22%23ac883a%22%2F%3E%3Ccircle%20cx%3D%220%22%20cy%3D%2231.0%22%20r%3D%228.0%22%20fill%3D%22%23ac883a%22%2F%3E%3Ccircle%20cx%3D%22-31.0%22%20cy%3D%220%22%20r%3D%228.0%22%20fill%3D%22%23ac883a%22%2F%3E%3Ccircle%20cx%3D%2231.0%22%20cy%3D%220%22%20r%3D%228.0%22%20fill%3D%22%23ac883a%22%2F%3E%3C%2Fg%3E%3Cg%20transform%3D%22translate%280%20225%29%22%3E%3Ccircle%20r%3D%2241.0%22%20fill%3D%22none%22%20stroke%3D%22%23ac883a%22%20stroke-width%3D%225.5%22%2F%3E%3Cpath%20d%3D%22M-10.0%20-31.0%20H10.0%20V31.0%20H-10.0%20Z%22%20fill%3D%22%23ac883a%22%2F%3E%3Cpath%20d%3D%22M-31.0%20-10.0%20H31.0%20V10.0%20H-31.0%20Z%22%20fill%3D%22%23ac883a%22%2F%3E%3Ccircle%20cx%3D%220%22%20cy%3D%22-31.0%22%20r%3D%228.0%22%20fill%3D%22%23ac883a%22%2F%3E%3Ccircle%20cx%3D%220%22%20cy%3D%2231.0%22%20r%3D%228.0%22%20fill%3D%22%23ac883a%22%2F%3E%3Ccircle%20cx%3D%22-31.0%22%20cy%3D%220%22%20r%3D%228.0%22%20fill%3D%22%23ac883a%22%2F%3E%3Ccircle%20cx%3D%2231.0%22%20cy%3D%220%22%20r%3D%228.0%22%20fill%3D%22%23ac883a%22%2F%3E%3C%2Fg%3E%3Cg%20transform%3D%22translate%28150%20225%29%22%3E%3Ccircle%20r%3D%2241.0%22%20fill%3D%22none%22%20stroke%3D%22%23ac883a%22%20stroke-width%3D%225.5%22%2F%3E%3Cpath%20d%3D%22M-10.0%20-31.0%20H10.0%20V31.0%20H-10.0%20Z%22%20fill%3D%22%23ac883a%22%2F%3E%3Cpath%20d%3D%22M-31.0%20-10.0%20H31.0%20V10.0%20H-31.0%20Z%22%20fill%3D%22%23ac883a%22%2F%3E%3Ccircle%20cx%3D%220%22%20cy%3D%22-31.0%22%20r%3D%228.0%22%20fill%3D%22%23ac883a%22%2F%3E%3Ccircle%20cx%3D%220%22%20cy%3D%2231.0%22%20r%3D%228.0%22%20fill%3D%22%23ac883a%22%2F%3E%3Ccircle%20cx%3D%22-31.0%22%20cy%3D%220%22%20r%3D%228.0%22%20fill%3D%22%23ac883a%22%2F%3E%3Ccircle%20cx%3D%2231.0%22%20cy%3D%220%22%20r%3D%228.0%22%20fill%3D%22%23ac883a%22%2F%3E%3C%2Fg%3E%3Cpath%20d%3D%22M20%2013%20L27%2020%20L20%2027%20L13%2020%20Z%22%20fill%3D%22%23ac883a%22%2F%3E%3Cpath%20d%3D%22M20%20123%20L27%20130%20L20%20137%20L13%20130%20Z%22%20fill%3D%22%23ac883a%22%2F%3E%3Cpath%20d%3D%22M20%20163%20L27%20170%20L20%20177%20L13%20170%20Z%22%20fill%3D%22%23ac883a%22%2F%3E%3Cpath%20d%3D%22M20%20273%20L27%20280%20L20%20287%20L13%20280%20Z%22%20fill%3D%22%23ac883a%22%2F%3E%3Cpath%20d%3D%22M130%2013%20L137%2020%20L130%2027%20L123%2020%20Z%22%20fill%3D%22%23ac883a%22%2F%3E%3Cpath%20d%3D%22M130%20123%20L137%20130%20L130%20137%20L123%20130%20Z%22%20fill%3D%22%23ac883a%22%2F%3E%3Cpath%20d%3D%22M130%20163%20L137%20170%20L130%20177%20L123%20170%20Z%22%20fill%3D%22%23ac883a%22%2F%3E%3Cpath%20d%3D%22M130%20273%20L137%20280%20L130%20287%20L123%20280%20Z%22%20fill%3D%22%23ac883a%22%2F%3E%3C%2Fg%3E%3C%2Fsvg%3E"), linear-gradient(180deg, #faf6e9 0%, #eef3f9 100%); background-size: 150px 300px, cover; background-attachment: fixed, fixed; }
   
-  /* AUTH */
-  #auth-screen { display: flex; align-items: center; justify-content: center; min-height: 100vh; padding: 1rem; background: linear-gradient(135deg, #1a3c6b 0%, #2a5298 50%, #1a3c6b 100%); }
-  .auth-card { background: white; border-radius: 20px; padding: 2.5rem; width: 100%; max-width: 420px; box-shadow: 0 20px 60px rgba(0,0,0,0.3); }
-  .auth-logo { text-align: center; margin-bottom: 2rem; }
-  .auth-logo .cross { font-size: 3rem; color: var(--accent); }
-  .auth-logo h1 { font-size: 1.4rem; color: var(--primary); font-weight: 700; margin-top: 0.5rem; line-height: 1.4; }
-  .auth-logo p { color: var(--text-muted); font-size: 0.9rem; margin-top: 0.3rem; }
-  .auth-tabs { display: flex; gap: 0; margin-bottom: 1.5rem; border: 1px solid var(--border); border-radius: var(--radius); overflow: hidden; }
-  .auth-tab { flex: 1; padding: 0.6rem; text-align: center; cursor: pointer; font-size: 0.9rem; background: white; border: none; color: var(--text-muted); transition: all 0.2s; }
-  .auth-tab.active { background: var(--primary); color: white; font-weight: 600; }
+  /* AUTH — Step 14: animated glass redesign (design B) */
+  #auth-screen { position: relative; display: flex; min-height: 100vh; padding: 2rem 1rem; overflow: hidden; background: linear-gradient(150deg, #0c1a33 0%, #162e54 48%, #0a5e63 125%); color-scheme: dark; }
+  .auth-bg { position: fixed; inset: 0; z-index: 0; pointer-events: none; }
+  .auth-blob { position: absolute; border-radius: 50%; filter: blur(80px); }
+  .auth-blob.b1 { width: 480px; height: 480px; background: rgba(242,193,78,.20); top: -140px; inset-inline-start: -120px; animation: authDrift1 14s ease-in-out infinite alternate; }
+  .auth-blob.b2 { width: 520px; height: 520px; background: rgba(16,130,140,.45); bottom: -180px; inset-inline-end: -140px; animation: authDrift2 18s ease-in-out infinite alternate; }
+  .auth-blob.b3 { width: 300px; height: 300px; background: rgba(64,105,190,.32); top: 52%; inset-inline-start: 55%; animation: authDrift1 21s ease-in-out infinite alternate-reverse; }
+  @keyframes authDrift1 { from { transform: translate(0,0) scale(1); } to { transform: translate(90px,60px) scale(1.18); } }
+  @keyframes authDrift2 { from { transform: translate(0,0) scale(1.12); } to { transform: translate(-80px,-60px) scale(.94); } }
+  .auth-motif { position: absolute; inset: 0; opacity: .05; background-image: url("data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%22150%22%20height%3D%22300%22%20viewBox%3D%220%200%20150%20300%22%3E%3Cg%20opacity%3D%220.23%22%3E%3Cg%20transform%3D%22translate%2875%2075%29%22%3E%3Ccircle%20r%3D%2241.0%22%20fill%3D%22none%22%20stroke%3D%22%23ac883a%22%20stroke-width%3D%225.5%22%2F%3E%3Cpath%20d%3D%22M-10.0%20-31.0%20H10.0%20V31.0%20H-10.0%20Z%22%20fill%3D%22%23ac883a%22%2F%3E%3Cpath%20d%3D%22M-31.0%20-10.0%20H31.0%20V10.0%20H-31.0%20Z%22%20fill%3D%22%23ac883a%22%2F%3E%3Ccircle%20cx%3D%220%22%20cy%3D%22-31.0%22%20r%3D%228.0%22%20fill%3D%22%23ac883a%22%2F%3E%3Ccircle%20cx%3D%220%22%20cy%3D%2231.0%22%20r%3D%228.0%22%20fill%3D%22%23ac883a%22%2F%3E%3Ccircle%20cx%3D%22-31.0%22%20cy%3D%220%22%20r%3D%228.0%22%20fill%3D%22%23ac883a%22%2F%3E%3Ccircle%20cx%3D%2231.0%22%20cy%3D%220%22%20r%3D%228.0%22%20fill%3D%22%23ac883a%22%2F%3E%3C%2Fg%3E%3Cg%20transform%3D%22translate%280%20225%29%22%3E%3Ccircle%20r%3D%2241.0%22%20fill%3D%22none%22%20stroke%3D%22%23ac883a%22%20stroke-width%3D%225.5%22%2F%3E%3Cpath%20d%3D%22M-10.0%20-31.0%20H10.0%20V31.0%20H-10.0%20Z%22%20fill%3D%22%23ac883a%22%2F%3E%3Cpath%20d%3D%22M-31.0%20-10.0%20H31.0%20V10.0%20H-31.0%20Z%22%20fill%3D%22%23ac883a%22%2F%3E%3Ccircle%20cx%3D%220%22%20cy%3D%22-31.0%22%20r%3D%228.0%22%20fill%3D%22%23ac883a%22%2F%3E%3Ccircle%20cx%3D%220%22%20cy%3D%2231.0%22%20r%3D%228.0%22%20fill%3D%22%23ac883a%22%2F%3E%3Ccircle%20cx%3D%22-31.0%22%20cy%3D%220%22%20r%3D%228.0%22%20fill%3D%22%23ac883a%22%2F%3E%3Ccircle%20cx%3D%2231.0%22%20cy%3D%220%22%20r%3D%228.0%22%20fill%3D%22%23ac883a%22%2F%3E%3C%2Fg%3E%3Cg%20transform%3D%22translate%28150%20225%29%22%3E%3Ccircle%20r%3D%2241.0%22%20fill%3D%22none%22%20stroke%3D%22%23ac883a%22%20stroke-width%3D%225.5%22%2F%3E%3Cpath%20d%3D%22M-10.0%20-31.0%20H10.0%20V31.0%20H-10.0%20Z%22%20fill%3D%22%23ac883a%22%2F%3E%3Cpath%20d%3D%22M-31.0%20-10.0%20H31.0%20V10.0%20H-31.0%20Z%22%20fill%3D%22%23ac883a%22%2F%3E%3Ccircle%20cx%3D%220%22%20cy%3D%22-31.0%22%20r%3D%228.0%22%20fill%3D%22%23ac883a%22%2F%3E%3Ccircle%20cx%3D%220%22%20cy%3D%2231.0%22%20r%3D%228.0%22%20fill%3D%22%23ac883a%22%2F%3E%3Ccircle%20cx%3D%22-31.0%22%20cy%3D%220%22%20r%3D%228.0%22%20fill%3D%22%23ac883a%22%2F%3E%3Ccircle%20cx%3D%2231.0%22%20cy%3D%220%22%20r%3D%228.0%22%20fill%3D%22%23ac883a%22%2F%3E%3C%2Fg%3E%3Cpath%20d%3D%22M20%2013%20L27%2020%20L20%2027%20L13%2020%20Z%22%20fill%3D%22%23ac883a%22%2F%3E%3Cpath%20d%3D%22M20%20123%20L27%20130%20L20%20137%20L13%20130%20Z%22%20fill%3D%22%23ac883a%22%2F%3E%3Cpath%20d%3D%22M20%20163%20L27%20170%20L20%20177%20L13%20170%20Z%22%20fill%3D%22%23ac883a%22%2F%3E%3Cpath%20d%3D%22M20%20273%20L27%20280%20L20%20287%20L13%20280%20Z%22%20fill%3D%22%23ac883a%22%2F%3E%3Cpath%20d%3D%22M130%2013%20L137%2020%20L130%2027%20L123%2020%20Z%22%20fill%3D%22%23ac883a%22%2F%3E%3Cpath%20d%3D%22M130%20123%20L137%20130%20L130%20137%20L123%20130%20Z%22%20fill%3D%22%23ac883a%22%2F%3E%3Cpath%20d%3D%22M130%20163%20L137%20170%20L130%20177%20L123%20170%20Z%22%20fill%3D%22%23ac883a%22%2F%3E%3Cpath%20d%3D%22M130%20273%20L137%20280%20L130%20287%20L123%20280%20Z%22%20fill%3D%22%23ac883a%22%2F%3E%3C%2Fg%3E%3C%2Fsvg%3E"); background-size: 150px 300px; }
+  .auth-fx { position: absolute; color: #f2c14e; opacity: 0; animation: authRise linear infinite; }
+  .auth-fx svg { display: block; stroke: currentColor; fill: none; stroke-width: 1.6; stroke-linecap: round; }
+  @keyframes authRise { 0% { transform: translateY(30px) rotate(0deg); opacity: 0; } 12% { opacity: var(--o,.45); } 88% { opacity: var(--o,.45); } 100% { transform: translateY(-105vh) rotate(24deg); opacity: 0; } }
+  .auth-card { position: relative; z-index: 2; margin: auto; width: 100%; max-width: 440px; background: rgba(13,28,56,.55); -webkit-backdrop-filter: blur(18px) saturate(1.3); backdrop-filter: blur(18px) saturate(1.3); border: 1px solid rgba(255,255,255,.16); border-radius: 24px; box-shadow: 0 30px 70px rgba(0,0,0,.45), inset 0 1px 0 rgba(255,255,255,.12); padding: 2.1rem 2rem 1.5rem; color: #eef3f9; animation: authCardIn .9s cubic-bezier(.2,.8,.3,1) both; }
+  @keyframes authCardIn { from { opacity: 0; transform: translateY(26px) scale(.97); } to { opacity: 1; transform: none; } }
+  .auth-card::before { content: ""; position: absolute; top: 0; left: 12%; right: 12%; height: 1px; background: linear-gradient(90deg, transparent, rgba(242,193,78,.75), transparent); }
+  .auth-logo { text-align: center; margin-bottom: 1.4rem; }
+  .auth-logo-wrap { position: relative; width: 104px; height: 104px; margin: 0 auto .9rem; border-radius: 50%; background: #fff; overflow: hidden; display: flex; align-items: center; justify-content: center; box-shadow: 0 0 0 3px #c8a84b, 0 14px 30px rgba(0,0,0,.4); animation: authFloaty 5s ease-in-out infinite; }
+  @keyframes authFloaty { 0%,100% { transform: translateY(0); } 50% { transform: translateY(-7px); } }
+  .auth-logo-wrap img { width: 92px; height: 92px; object-fit: contain; border-radius: 50%; }
+  .auth-logo-wrap::after { content: ""; position: absolute; top: -20%; bottom: -20%; width: 34%; left: -60%; background: linear-gradient(100deg, transparent, rgba(255,255,255,.55), transparent); transform: skewX(-18deg); animation: authSweep 5.6s ease-in-out infinite; }
+  @keyframes authSweep { 0%,55% { left: -60%; } 85%,100% { left: 130%; } }
+  .auth-logo h1 { font-family: 'Noto Kufi Arabic', 'Segoe UI', Tahoma, sans-serif; font-size: 1.34rem; font-weight: 800; line-height: 1.55; color: #fff; }
+  .auth-logo .auth-sub { color: #a9bccf; font-size: .88rem; margin-top: .3rem; }
+  .auth-verse { font-family: 'Noto Naskh Arabic', serif; font-size: 1.08rem; color: #f5ecc9; margin-top: .95rem; }
+  .auth-verse-ref { font-size: .76rem; color: #93a9bd; margin-top: .15rem; }
+  .auth-tabs { display: flex; background: rgba(255,255,255,.08); border: 1px solid rgba(255,255,255,.1); border-radius: 11px; padding: 4px; margin-bottom: 1.3rem; }
+  .auth-tab { flex: 1; padding: .52rem; text-align: center; cursor: pointer; font-size: .9rem; background: transparent; border: none; border-radius: 8px; color: #a9bccf; font-family: inherit; transition: all .25s; }
+  .auth-tab.active { background: rgba(255,255,255,.94); color: #162e54; font-weight: 700; box-shadow: 0 3px 10px rgba(0,0,0,.25); }
+  #auth-screen .form-group label { color: #dbe6f2; font-weight: 700; }
+  #auth-screen .form-group input, #auth-screen .form-group select { background: rgba(255,255,255,.07); border: 1.5px solid rgba(255,255,255,.16); border-radius: 10px; color: #fff; padding: .72rem 1rem; }
+  #auth-screen .form-group input::placeholder { color: #7e93ab; }
+  #auth-screen .form-group select option { color: #182848; background: #fff; }
+  #auth-screen .form-group input:focus, #auth-screen .form-group select:focus { border-color: #f2c14e; box-shadow: 0 0 0 4px rgba(242,193,78,.22); background: rgba(255,255,255,.1); }
+  #auth-screen .form-group input[type="file"] { border-style: dashed; padding: .55rem .8rem; }
+  .auth-input { position: relative; }
+  .auth-input > svg { position: absolute; top: 50%; transform: translateY(-50%); inset-inline-start: .8rem; width: 19px; height: 19px; stroke: #8fa5bd; fill: none; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; pointer-events: none; transition: stroke .2s; }
+  .auth-input:focus-within > svg { stroke: #f2c14e; }
+  #auth-screen .auth-input input { padding-inline-start: 2.7rem; }
+  #auth-screen .auth-input.has-eye input { padding-inline-end: 2.7rem; }
+  .auth-eye { position: absolute; top: 50%; transform: translateY(-50%); inset-inline-end: .55rem; background: none; border: none; cursor: pointer; padding: .3rem; display: flex; }
+  .auth-eye svg { width: 20px; height: 20px; stroke: #8fa5bd; fill: none; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
+  #auth-screen .btn-primary { position: relative; overflow: hidden; background: linear-gradient(180deg, #dcba5e, #c8a84b); color: #231a04; font-weight: 800; border-radius: 10px; box-shadow: 0 10px 24px rgba(200,168,75,.32); }
+  #auth-screen .btn-primary:hover { background: linear-gradient(180deg, #e6c76c, #d2b356); }
+  #auth-screen .btn-primary::after { content: ""; position: absolute; top: -20%; bottom: -20%; width: 30%; left: -50%; background: linear-gradient(100deg, transparent, rgba(255,255,255,.5), transparent); transform: skewX(-18deg); animation: authSweep 4.8s ease-in-out infinite; pointer-events: none; }
+  .auth-foot { margin-top: 1.6rem; padding-top: 1rem; border-top: 1px solid rgba(255,255,255,.1); text-align: center; font-size: .78rem; color: #7e93ab; }
+  .auth-foot span { direction: ltr; display: inline-block; }
+  @media (max-width: 520px) { .auth-card { padding: 1.8rem 1.25rem 1.3rem; } .auth-logo h1 { font-size: 1.18rem; } }
+  @media (prefers-reduced-motion: reduce) { #auth-screen *, #auth-screen *::before, #auth-screen *::after { animation-duration: .01ms !important; animation-iteration-count: 1 !important; transition-duration: .01ms !important; } }
+  /* Step 14: pending + complete-profile take the auth identity */
+  #pending-page .pending-banner, #complete-profile-page .pending-banner { background: linear-gradient(160deg, #101f3c, #162e54 55%, #0a5e63 135%); border: 1px solid rgba(200,168,75,.45); border-radius: 20px; box-shadow: 0 24px 50px rgba(16,31,60,.35); color: #eef3f9; padding: 2.2rem 1.6rem; }
+  #pending-page .pending-banner h2, #complete-profile-page .pending-banner h2 { color: #f2c14e; font-family: 'Noto Kufi Arabic', 'Segoe UI', Tahoma, sans-serif; }
+  #pending-page .pending-banner p, #complete-profile-page .pending-banner p { color: #cfe0ea; }
+  #pending-page .btn-primary, #complete-profile-page .btn-primary { background: linear-gradient(180deg, #dcba5e, #c8a84b); color: #231a04; font-weight: 800; }
+  #complete-profile-page #gate-phone { background: rgba(255,255,255,.08); border-color: rgba(255,255,255,.25); color: #fff; }
+  #complete-profile-page #gate-photo-done { color: #4ade80 !important; }
+  #complete-profile-page .pending-banner a { color: #fca5a5 !important; }
   .form-group { margin-bottom: 1rem; }
   .form-group label { display: block; font-size: 0.85rem; font-weight: 600; color: var(--text); margin-bottom: 0.4rem; }
   .form-group input, .form-group select { width: 100%; padding: 0.75rem 1rem; border: 1px solid var(--border); border-radius: 8px; font-size: 0.95rem; font-family: inherit; color: var(--text); background: white; transition: border-color 0.2s; }
@@ -457,11 +507,21 @@ function generateQR(elementId, text, size) {
 
 <!-- AUTH SCREEN -->
 <div id="auth-screen">
+  <div class="auth-bg" aria-hidden="true">
+    <div class="auth-blob b1"></div><div class="auth-blob b2"></div><div class="auth-blob b3"></div>
+    <div class="auth-motif"></div>
+    <span class="auth-fx" style="inset-inline-start:8%; bottom:-40px; --o:.45; animation-duration:12s"><svg width="24" height="24" viewBox="0 0 24 24"><path d="M12 3v18M6 9h12"/></svg></span>
+    <span class="auth-fx" style="inset-inline-start:22%; bottom:-40px; --o:.3; animation-duration:16s; animation-delay:4s"><svg width="17" height="17" viewBox="0 0 24 24"><path d="M12 3v18M6 9h12"/></svg></span>
+    <span class="auth-fx" style="inset-inline-start:70%; bottom:-40px; --o:.4; animation-duration:14s; animation-delay:2s"><svg width="21" height="21" viewBox="0 0 24 24"><path d="M12 3v18M6 9h12"/></svg></span>
+    <span class="auth-fx" style="inset-inline-start:90%; bottom:-40px; --o:.34; animation-duration:18s; animation-delay:6s"><svg width="15" height="15" viewBox="0 0 24 24"><path d="M12 3v18M6 9h12"/></svg></span>
+  </div>
   <div class="auth-card">
     <div class="auth-logo">
-      <img id="auth-logo-img" src="" alt="شعار المدرسة" style="width:110px;height:110px;object-fit:contain;margin-bottom:0.5rem;border-radius:50%;box-shadow:0 4px 16px rgba(26,60,107,0.15)">
+      <div class="auth-logo-wrap"><img id="auth-logo-img" src="" alt="شعار المدرسة"></div>
       <h1>مدرسة الطغمات السمائية<br>للشمامسة</h1>
-      <p>نظام إدارة المخدومين والخدام</p>
+      <p class="auth-sub">نظام إدارة المخدومين والخدام</p>
+      <p class="auth-verse">«اِخْدِمُوا الرَّبَّ بِفَرَحٍ»</p>
+      <p class="auth-verse-ref">مزمور 100 : 2</p>
     </div>
 
     <div class="auth-tabs" id="auth-tabs-bar">
@@ -475,15 +535,21 @@ function generateQR(elementId, text, size) {
     <div id="reset-password-form" style="display:none">
       <div style="text-align:center;margin-bottom:1.25rem">
         <div style="font-size:2rem">🔐</div>
-        <div style="font-weight:700;font-size:1.1rem;color:var(--primary)">تعيين كلمة سر جديدة</div>
+        <div style="font-weight:700;font-size:1.1rem;color:#f2c14e">تعيين كلمة سر جديدة</div>
       </div>
       <div class="form-group">
         <label>كلمة السر الجديدة</label>
-        <input type="password" id="new-password-input" placeholder="٦ أحرف على الأقل">
+        <div class="auth-input has-eye"><svg viewBox="0 0 24 24"><rect x="4" y="10" width="16" height="10" rx="2"/><path d="M8 10V7a4 4 0 0 1 8 0v3"/></svg>
+          <input type="password" id="new-password-input" placeholder="٦ أحرف على الأقل">
+          <button type="button" class="auth-eye" onclick="togglePw('new-password-input')" aria-label="إظهار كلمة المرور"><svg viewBox="0 0 24 24"><path d="M2 12s3.5-6.5 10-6.5S22 12 22 12s-3.5 6.5-10 6.5S2 12 2 12z"/><circle cx="12" cy="12" r="3"/></svg></button>
+        </div>
       </div>
       <div class="form-group">
         <label>تأكيد كلمة السر</label>
-        <input type="password" id="confirm-password-input" placeholder="أعد كتابة كلمة السر">
+        <div class="auth-input has-eye"><svg viewBox="0 0 24 24"><rect x="4" y="10" width="16" height="10" rx="2"/><path d="M8 10V7a4 4 0 0 1 8 0v3"/></svg>
+          <input type="password" id="confirm-password-input" placeholder="أعد كتابة كلمة السر">
+          <button type="button" class="auth-eye" onclick="togglePw('confirm-password-input')" aria-label="إظهار كلمة المرور"><svg viewBox="0 0 24 24"><path d="M2 12s3.5-6.5 10-6.5S22 12 22 12s-3.5 6.5-10 6.5S2 12 2 12z"/><circle cx="12" cy="12" r="3"/></svg></button>
+        </div>
       </div>
       <button class="btn btn-primary" onclick="submitNewPassword()">✅ حفظ كلمة السر الجديدة</button>
     </div>
@@ -492,14 +558,19 @@ function generateQR(elementId, text, size) {
     <div id="login-form">
       <div class="form-group">
         <label>البريد الإلكتروني</label>
-        <input type="email" id="login-email" placeholder="example@gmail.com">
+        <div class="auth-input"><svg viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="M3 7l9 6 9-6"/></svg>
+          <input type="email" id="login-email" placeholder="example@gmail.com">
+        </div>
       </div>
       <div class="form-group">
         <label>كلمة المرور</label>
-        <input type="password" id="login-password" placeholder="••••••••">
+        <div class="auth-input has-eye"><svg viewBox="0 0 24 24"><rect x="4" y="10" width="16" height="10" rx="2"/><path d="M8 10V7a4 4 0 0 1 8 0v3"/></svg>
+          <input type="password" id="login-password" placeholder="••••••••">
+          <button type="button" class="auth-eye" onclick="togglePw('login-password')" aria-label="إظهار كلمة المرور"><svg viewBox="0 0 24 24"><path d="M2 12s3.5-6.5 10-6.5S22 12 22 12s-3.5 6.5-10 6.5S2 12 2 12z"/><circle cx="12" cy="12" r="3"/></svg></button>
+        </div>
       </div>
       <button class="btn btn-primary" onclick="login()">دخول</button>
-      <p style="text-align:center; margin-top:0.75rem"><button onclick="forgotPassword('login-email')" style="background:none; border:none; color:var(--primary-light); cursor:pointer; font-size:0.85rem; text-decoration:underline">نسيت كلمة السر؟</button></p>
+      <p style="text-align:center; margin-top:0.75rem"><button onclick="forgotPassword('login-email')" style="background:none; border:none; color:#f2c14e; cursor:pointer; font-size:0.85rem; text-decoration:underline; font-family:inherit">نسيت كلمة السر؟</button></p>
     </div>
 
     <!-- SERVANT HIDDEN FORM (kept for functionality) -->
@@ -519,7 +590,7 @@ function generateQR(elementId, text, size) {
       </div>
       <div class="form-group">
         <label>تاريخ الميلاد <span style="color:var(--danger)">*</span></label>
-        <input type="date" id="reg-birth" required style="direction:ltr; text-align:left; color:var(--text); width:100%; padding:0.75rem 1rem; border:1px solid var(--border); border-radius:8px; font-size:0.95rem; font-family:inherit">
+        <input type="date" id="reg-birth" required style="direction:ltr; text-align:left; width:100%; font-size:0.95rem; font-family:inherit">
       </div>
       <div class="form-group">
         <label>الجنس <span style="color:var(--danger)">*</span></label>
@@ -565,14 +636,21 @@ function generateQR(elementId, text, size) {
       </div>
       <div class="form-group">
         <label>البريد الإلكتروني <span style="color:var(--danger)">*</span></label>
-        <input type="email" id="reg-email" placeholder="example@gmail.com" required>
+        <div class="auth-input"><svg viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="M3 7l9 6 9-6"/></svg>
+          <input type="email" id="reg-email" placeholder="example@gmail.com" required>
+        </div>
       </div>
       <div class="form-group">
         <label>كلمة المرور <span style="color:var(--danger)">*</span></label>
-        <input type="password" id="reg-password" placeholder="٦ أحرف على الأقل" required minlength="6">
+        <div class="auth-input has-eye"><svg viewBox="0 0 24 24"><rect x="4" y="10" width="16" height="10" rx="2"/><path d="M8 10V7a4 4 0 0 1 8 0v3"/></svg>
+          <input type="password" id="reg-password" placeholder="٦ أحرف على الأقل" required minlength="6">
+          <button type="button" class="auth-eye" onclick="togglePw('reg-password')" aria-label="إظهار كلمة المرور"><svg viewBox="0 0 24 24"><path d="M2 12s3.5-6.5 10-6.5S22 12 22 12s-3.5 6.5-10 6.5S2 12 2 12z"/><circle cx="12" cy="12" r="3"/></svg></button>
+        </div>
       </div>
       <button class="btn btn-primary" onclick="register()">إنشاء الحساب</button>
     </div>
+
+    <p class="auth-foot">مدرسة الطغمات السمائية للشمامسة © 2026<br><span>madresetelta8mat.pages.dev</span></p>
   </div>
 </div>
 
@@ -2193,6 +2271,13 @@ function cascadeServantsClassFilter(sectorSelectId, classSelectId) {
 }
 
 // ========== AUTH ==========
+function togglePw(id) {
+  const inp = document.getElementById(id);
+  if (!inp) return;
+  inp.type = inp.type === 'password' ? 'text' : 'password';
+  inp.focus();
+}
+
 function switchAuthTab(tab) {
   document.querySelectorAll('.auth-tab').forEach(t => t.classList.remove('active'));
   document.getElementById('login-form').style.display = tab === 'login' ? 'block' : 'none';
