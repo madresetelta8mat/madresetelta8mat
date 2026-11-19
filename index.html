@@ -760,7 +760,7 @@ function generateQR(elementId, text, size) {
 <div id="app">
   <div class="header">
     <button class="drawer-btn" onclick="openProfileDrawer()" aria-label="القائمة والملف الشخصي">&#9776;</button>
-    <div style="display:flex; align-items:center; gap:0.75rem">
+    <div style="display:flex; align-items:center; gap:0.75rem; cursor:pointer" onclick="goHome()" title="الصفحة الرئيسية" role="button" aria-label="الصفحة الرئيسية">
       <img id="header-logo-img" src="" alt="" style="width:40px;height:40px;object-fit:contain;border-radius:50%;border:2px solid var(--accent)">
       <div class="header-title-block">
         <div class="header-title">الطغمات السمائية</div>
@@ -8299,6 +8299,16 @@ function showMyProfile() {
   if (p && p.role === 'student') { showPage('profile-page'); loadMyProfile(); return; }
   renderMyProfilePage();
   showPage('my-profile-page');
+}
+
+function goHome() {
+  if (currentServant) {
+    if (!currentServant.profile_completed) { showServantPage('servant-complete-page'); return; }
+    showServantPage('servant-dashboard-page', 'servant-home');
+    return;
+  }
+  if (currentProfile?.role === 'student' && !currentProfile?.approved) { showPage('pending-page'); return; }
+  goMyProfileHome();
 }
 
 function goMyProfileHome() {
