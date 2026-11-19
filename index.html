@@ -1645,6 +1645,7 @@ function generateQR(elementId, text, size) {
           <div style="font-size:4rem; margin-bottom:1rem" id="quiz-result-emoji">&#x1F389;</div>
           <div style="font-size:1.5rem; font-weight:800; color:var(--primary); margin-bottom:0.5rem" id="quiz-result-score"></div>
           <div style="color:var(--text-muted); margin-bottom:1.5rem" id="quiz-result-msg-text"></div>
+          <div id="quiz-result-points" style="color:var(--primary); font-weight:700; margin-bottom:1.5rem; min-height:24px"></div>
           <button class="btn btn-primary" onclick="restartQuiz()" style="width:auto; padding:0.75rem 2rem">&#x1F504; اختبار جديد</button>
         </div>
       </div>
@@ -7589,6 +7590,7 @@ let quizSelectedSubject = 'bible';
 let quizSelectedSectorId = '';
 let quizTotalCount = 10;
 let quizAnsweredCurrent = false;
+let quizPointsHandled = false;
 
 const QUIZ_SUBJECT_LABELS = { bible: 'كتاب مقدس 📖', liturgy: 'طقس 🕊️', coptic: 'قبطي 🔤' };
 const QUIZ_MANAGER_ROLES = ['admin', 'priest', 'sector_leader', 'servant', 'system_servant'];
@@ -7781,6 +7783,7 @@ async function startQuiz() {
     quizCurrentIndex = 0;
     quizScore = 0;
     quizAnswered = [];
+    quizPointsHandled = false;
 
     document.getElementById('quiz-setup-section').style.display = 'none';
     document.getElementById('quiz-active-section').style.display = 'block';
@@ -7879,6 +7882,41 @@ function showQuizResults() {
   document.getElementById('quiz-result-emoji').textContent = emoji;
   document.getElementById('quiz-result-score').textContent = `${quizScore} / ${quizTotalCount} (${pct}%)`;
   document.getElementById('quiz-result-msg-text').textContent = `${QUIZ_SUBJECT_LABELS[quizSelectedSubject]} — ${msg}`;
+  handleQuizPoints();
+}
+
+const QUIZ_POINT_TITLES = { bible: '🤖 مراجعة البوت — كتاب مقدس', liturgy: '🤖 مراجعة البوت — طقس', coptic: '🤖 مراجعة البوت — قبطي' };
+
+async function handleQuizPoints() {
+  const el = document.getElementById('quiz-result-points');
+  if (!el) return;
+  el.textContent = '';
+  if (quizPointsHandled) return;
+  quizPointsHandled = true;
+  if (!currentProfile || currentProfile.role !== 'student') return;
+  if (quizScore <= 0) { el.textContent = 'النقاط بتتحسب من أول إجابة صح — المرة الجاية أحسن 💪'; return; }
+  try {
+    const title = QUIZ_POINT_TITLES[quizSelectedSubject];
+    let { data: task } = await sb.from('tasks').select('id').eq('title', title).is('class_id', null).maybeSingle();
+    if (!task) {
+      const ins = await sb.from('tasks').insert({ title, description: 'نقاط بوت المراجعة — تُمنح تلقائيًا عند إكمال المراجعة', points: 0, class_id: null }).select('id').single();
+      if (ins.error) throw ins.error;
+      task = ins.data;
+    }
+    const cairoDay = d => new Date(d).toLocaleDateString('en-CA', { timeZone: 'Africa/Cairo' });
+    const since = new Date(Date.now() - 36 * 3600 * 1000).toISOString();
+    const { data: recent } = await sb.from('student_tasks').select('id, created_at').eq('student_id', currentProfile.id).eq('task_id', task.id).gte('created_at', since);
+    if ((recent || []).some(r => cairoDay(r.created_at) === cairoDay(new Date()))) {
+      el.textContent = '⭐ نقاط المادة دي اتحسبت النهاردة خلاص — المحاولة دي تدريب بس';
+      return;
+    }
+    const { error } = await sb.from('student_tasks').insert({ student_id: currentProfile.id, task_id: task.id, points_earned: quizScore, completed: true, completed_at: new Date().toISOString() });
+    if (error) throw error;
+    el.textContent = `⭐ اتضافت ${quizScore} نقطة لنقاطك — هتظهر في لوحة الشرف`;
+  } catch (e) {
+    console.error('quiz points', e);
+    el.textContent = '';
+  }
 }
 
 function restartQuiz() {
