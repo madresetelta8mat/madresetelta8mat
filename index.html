@@ -27,7 +27,7 @@
 <link rel="apple-touch-icon" href="/icon-192.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Noto+Kufi+Arabic:wght@600;800&family=Noto+Naskh+Arabic:wght@600&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Noto+Kufi+Arabic:wght@600;800&family=Noto+Naskh+Arabic:wght@600&family=Noto+Sans+Arabic:wght@400;500;700&display=swap" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.119.0"></script>
 <script src="https://cdn.jsdelivr.net/npm/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/qrcode-generator@1.4.4/qrcode.js"></script>
@@ -122,6 +122,48 @@ function generateQR(elementId, text, size) {
   .auth-foot span { direction: ltr; display: inline-block; }
   @media (max-width: 520px) { .auth-card { padding: 1.8rem 1.25rem 1.3rem; } .auth-logo h1 { font-size: 1.18rem; } }
   @media (prefers-reduced-motion: reduce) { #auth-screen *, #auth-screen *::before, #auth-screen *::after { animation-duration: .01ms !important; animation-iteration-count: 1 !important; transition-duration: .01ms !important; } }
+
+  /* LANDING — Step 15: public intro page before login */
+  #landing-screen { position: relative; display: none; min-height: 100vh; overflow: hidden; background: linear-gradient(150deg, #0c1a33 0%, #162e54 48%, #0a5e63 125%); color-scheme: dark; font-family: 'Noto Sans Arabic', 'Segoe UI', Tahoma, sans-serif; color: #eef3fa; }
+  #landing-screen .lp-wrap { position: relative; z-index: 1; max-width: 1060px; margin: 0 auto; padding: 2.2rem 1.1rem 2.6rem; }
+  #landing-screen .lp-hero { text-align: center; padding: 1.2rem 0 1.6rem; animation: authCardIn .8s cubic-bezier(.2,.8,.3,1) both; }
+  #landing-screen .lp-logo-ring { width: 128px; height: 128px; margin: 0 auto 1rem; border-radius: 50%; padding: 5px; background: linear-gradient(140deg,#e9cd7a,#c9a227 55%,#8a6d14); position: relative; box-shadow: 0 14px 38px rgba(0,0,0,.45); animation: authFloaty 5s ease-in-out infinite; overflow: hidden; }
+  #landing-screen .lp-logo-ring img { width: 100%; height: 100%; border-radius: 50%; display: block; background: #fff; object-fit: contain; }
+  #landing-screen .lp-logo-ring::after { content: ""; position: absolute; top: -20%; bottom: -20%; width: 34%; left: -60%; background: linear-gradient(100deg, transparent, rgba(255,255,255,.55), transparent); transform: skewX(-18deg); animation: authSweep 5.6s ease-in-out infinite; }
+  #landing-screen .lp-title { font-family: 'Noto Kufi Arabic', sans-serif; font-weight: 800; font-size: clamp(1.7rem, 4.6vw, 2.6rem); line-height: 1.35; background: linear-gradient(180deg,#f6e3a1,#d8b75a 60%,#b8912c); -webkit-background-clip: text; background-clip: text; color: transparent; }
+  #landing-screen .lp-tagline { margin-top: .55rem; font-size: clamp(1rem, 2.4vw, 1.2rem); color: #dbe6f5; font-weight: 500; }
+  #landing-screen .lp-verse { margin-top: .9rem; font-family: 'Noto Naskh Arabic', serif; font-size: 1.15rem; color: #f0d488; }
+  #landing-screen .lp-verse small { color: #b9c9de; font-size: .85rem; }
+  #landing-screen .lp-cta { margin-top: 1.5rem; display: flex; gap: .8rem; justify-content: center; flex-wrap: wrap; }
+  #landing-screen .lp-btn { font-family: inherit; font-weight: 700; font-size: 1.02rem; border-radius: 12px; padding: .85rem 2rem; cursor: pointer; border: 1px solid transparent; transition: all .2s; }
+  #landing-screen .lp-btn-gold { color: #241a02; background: linear-gradient(180deg,#f0d488,#d8b75a 55%,#c39a35); box-shadow: 0 10px 26px rgba(201,162,39,.35); }
+  #landing-screen .lp-btn-gold:hover { transform: translateY(-2px); }
+  #landing-screen .lp-btn-ghost { color: #eaf1fa; background: rgba(255,255,255,.07); border-color: rgba(216,183,90,.45); }
+  #landing-screen .lp-btn-ghost:hover { background: rgba(255,255,255,.13); transform: translateY(-2px); }
+  #landing-screen .lp-glass { background: rgba(13,28,56,.55); border: 1px solid rgba(216,183,90,.28); border-radius: 20px; -webkit-backdrop-filter: blur(14px); backdrop-filter: blur(14px); box-shadow: 0 22px 50px rgba(0,0,0,.4); }
+  #landing-screen .lp-grid { display: grid; grid-template-columns: repeat(4,1fr); gap: 1rem; margin-top: 1.4rem; }
+  #landing-screen .lp-feat { padding: 1.3rem 1rem 1.15rem; text-align: center; }
+  #landing-screen .lp-feat .lp-ic { font-size: 2rem; line-height: 1; }
+  #landing-screen .lp-feat h3 { font-family: 'Noto Kufi Arabic', sans-serif; font-size: 1.05rem; color: #f0d488; margin: .55rem 0 .35rem; }
+  #landing-screen .lp-feat p { font-size: .86rem; color: #c6d4e8; line-height: 1.7; }
+  #landing-screen .lp-cols { display: grid; grid-template-columns: 1.15fr .85fr; gap: 1rem; margin-top: 1rem; }
+  #landing-screen .lp-panel { padding: 1.5rem; }
+  #landing-screen .lp-panel h2 { font-family: 'Noto Kufi Arabic', sans-serif; font-size: 1.3rem; color: #f0d488; margin-bottom: .7rem; }
+  #landing-screen .lp-panel p { color: #d7e2f0; line-height: 1.95; font-size: .97rem; }
+  #landing-screen .lp-sys { display: flex; gap: .55rem; flex-wrap: wrap; margin-top: 1rem; }
+  #landing-screen .lp-chip { font-size: .82rem; font-weight: 700; color: #f0d488; background: rgba(216,183,90,.13); border: 1px solid rgba(216,183,90,.35); border-radius: 999px; padding: .32rem .8rem; }
+  #landing-screen .lp-adm > div { display: flex; gap: .6rem; align-items: flex-start; padding: .5rem 0; border-bottom: 1px dashed rgba(216,183,90,.22); color: #d7e2f0; font-size: .95rem; line-height: 1.8; }
+  #landing-screen .lp-adm .lp-k { color: #f0d488; font-weight: 700; white-space: nowrap; }
+  #landing-screen .lp-fb { margin-top: 1rem; display: inline-block; background: #1877f2; color: #fff; font-weight: 700; text-decoration: none; padding: .7rem 1.4rem; border-radius: 12px; font-size: .95rem; }
+  #landing-screen .lp-fb:hover { background: #0f66d6; }
+  #landing-screen .lp-foot { text-align: center; margin-top: 2rem; color: #9db2cc; font-size: .85rem; line-height: 2; }
+  #landing-screen .lp-foot span { direction: ltr; display: inline-block; }
+  .auth-about-link { display: block; margin: .9rem auto 0; color: #a9c6e8; font-size: .85rem; text-decoration: underline; cursor: pointer; background: none; border: none; font-family: inherit; }
+  .auth-about-link:hover { color: #f0d488; }
+  @media (max-width: 820px) { #landing-screen .lp-grid { grid-template-columns: repeat(2,1fr); } #landing-screen .lp-cols { grid-template-columns: 1fr; } }
+  @media (max-width: 430px) { #landing-screen .lp-grid { gap: .7rem; } #landing-screen .lp-feat { padding: 1rem .6rem; } #landing-screen .lp-btn { padding: .8rem 1.3rem; font-size: .95rem; } }
+  @media (prefers-reduced-motion: reduce) { #landing-screen *, #landing-screen *::before, #landing-screen *::after { animation-duration: .01ms !important; animation-iteration-count: 1 !important; transition-duration: .01ms !important; } }
+
   /* Step 14: pending + complete-profile take the auth identity */
   #pending-page .pending-banner, #complete-profile-page .pending-banner { background: linear-gradient(160deg, #101f3c, #162e54 55%, #0a5e63 135%); border: 1px solid rgba(200,168,75,.45); border-radius: 20px; box-shadow: 0 24px 50px rgba(16,31,60,.35); color: #eef3f9; padding: 2.2rem 1.6rem; }
   #pending-page .pending-banner h2, #complete-profile-page .pending-banner h2 { color: #f2c14e; font-family: 'Noto Kufi Arabic', 'Segoe UI', Tahoma, sans-serif; }
@@ -505,6 +547,65 @@ function generateQR(elementId, text, size) {
 </head>
 <body>
 
+
+<!-- LANDING SCREEN (Step 15: public intro page shown to visitors before login) -->
+<div id="landing-screen">
+  <div class="auth-bg" aria-hidden="true">
+    <div class="auth-blob b1"></div><div class="auth-blob b2"></div><div class="auth-blob b3"></div>
+    <div class="auth-motif"></div>
+    <span class="auth-fx" style="inset-inline-start:8%; bottom:-40px; --o:.45; animation-duration:12s"><svg width="24" height="24" viewBox="0 0 24 24"><path d="M12 3v18M6 9h12"/></svg></span>
+    <span class="auth-fx" style="inset-inline-start:22%; bottom:-40px; --o:.3; animation-duration:16s; animation-delay:4s"><svg width="17" height="17" viewBox="0 0 24 24"><path d="M12 3v18M6 9h12"/></svg></span>
+    <span class="auth-fx" style="inset-inline-start:70%; bottom:-40px; --o:.4; animation-duration:14s; animation-delay:2s"><svg width="21" height="21" viewBox="0 0 24 24"><path d="M12 3v18M6 9h12"/></svg></span>
+    <span class="auth-fx" style="inset-inline-start:90%; bottom:-40px; --o:.34; animation-duration:18s; animation-delay:6s"><svg width="15" height="15" viewBox="0 0 24 24"><path d="M12 3v18M6 9h12"/></svg></span>
+  </div>
+  <div class="lp-wrap">
+    <section class="lp-hero">
+      <div class="lp-logo-ring"><img id="landing-logo-img" src="" alt="شعار مدرسة الطغمات السمائية للشمامسة"></div>
+      <h1 class="lp-title">مدرسة الطغمات السمائية للشمامسة</h1>
+      <p class="lp-tagline">بنعلّم أولادنا الألحان والطقس واللغة القبطية والكتاب المقدس… عشان يخدموا الرب بفرح 🎶</p>
+      <p class="lp-verse">«اِخْدِمُوا الرَّبَّ بِفَرَحٍ» <small>(مزمور ١٠٠ : ٢)</small></p>
+      <div class="lp-cta">
+        <button class="lp-btn lp-btn-gold" onclick="showAuthFromLanding('login')">🔐 تسجيل الدخول</button>
+        <button class="lp-btn lp-btn-ghost" onclick="showAuthFromLanding('register')">📝 إنشاء حساب جديد</button>
+      </div>
+    </section>
+
+    <section class="lp-grid">
+      <div class="lp-glass lp-feat"><div class="lp-ic">🎶</div><h3>ألحان وترتيل</h3><p>ألحان الكنيسة القبطية الأصيلة بالتسبحة والترتيل الجماعي</p></div>
+      <div class="lp-glass lp-feat"><div class="lp-ic">🕊️</div><h3>طقس</h3><p>طقوس القداس والأعياد والمناسبات الكنسية خطوة بخطوة</p></div>
+      <div class="lp-glass lp-feat"><div class="lp-ic">🔤</div><h3>لغة قبطية</h3><p>قراءة وكتابة اللغة القبطية لغة كنيستنا وتراثها</p></div>
+      <div class="lp-glass lp-feat"><div class="lp-ic">📖</div><h3>كتاب مقدس</h3><p>دراسة كلمة ربنا وحفظ الآيات في جو محبب للأطفال</p></div>
+    </section>
+
+    <section class="lp-cols">
+      <div class="lp-glass lp-panel">
+        <h2>عن المدرسة ✝️</h2>
+        <p>مدرسة الطغمات السمائية للشمامسة مدرسة كنسية لتعليم الشمامسة الصغار أصول الخدمة: بنحضّر جيل يحب الكنيسة ويخدمها بأمانة، من خلال منهج منتظم ومتابعة مستمرة لكل طالب من خدام المدرسة.</p>
+        <p style="margin-top:.6rem">وكل حاجة عندنا بنظام إلكتروني كامل عشان ولي الأمر والطالب يتابعوا أول بأول:</p>
+        <div class="lp-sys">
+          <span class="lp-chip">📷 حضور بالـ QR</span>
+          <span class="lp-chip">⭐ نقاط ومسابقات</span>
+          <span class="lp-chip">📝 امتحانات ونتائج</span>
+          <span class="lp-chip">🏆 لوحة شرف</span>
+          <span class="lp-chip">🤖 مراجعة تفاعلية</span>
+        </div>
+      </div>
+      <div class="lp-glass lp-panel lp-adm">
+        <h2>التقديم والقبول 📋</h2>
+        <div><span class="lp-k">📌 سن القبول:</span><span>من ٤ سنوات فأكثر</span></div>
+        <div><span class="lp-k">📝 الاستمارة:</span><span>متوفرة في السكرتارية</span></div>
+        <div><span class="lp-k">📂 أول مرة:</span><span>صورة من شهادة الميلاد + صورة شخصية للطفل</span></div>
+        <a class="lp-fb" href="https://www.facebook.com/profile.php?id=61586362611054" target="_blank" rel="noopener">👍 تابعنا على فيسبوك</a>
+      </div>
+    </section>
+
+    <footer class="lp-foot">
+      <div>🌐 <span>madresetelta8mat.pages.dev</span></div>
+      <div>تم التطوير بواسطة TG لخدمة مدرسة الطغمات السمائية للشمامسة</div>
+    </footer>
+  </div>
+</div>
+
 <!-- AUTH SCREEN -->
 <div id="auth-screen">
   <div class="auth-bg" aria-hidden="true">
@@ -651,6 +752,7 @@ function generateQR(elementId, text, size) {
     </div>
 
     <p class="auth-foot">مدرسة الطغمات السمائية للشمامسة © 2026<br><span>madresetelta8mat.pages.dev</span></p>
+    <button class="auth-about-link" onclick="showLanding()">✝️ عن المدرسة</button>
   </div>
 </div>
 
@@ -2188,6 +2290,8 @@ async function init() {
   if (session) {
     currentUser = session.user;
     await loadUserProfile();
+  } else if (!(hash && hash.includes('type=recovery'))) {
+    showLanding();
   }
 }
 
@@ -2466,7 +2570,25 @@ async function logout() {
   currentUser = null; currentProfile = null; currentServant = null;
   populateSectorDropdowns();
   document.getElementById('app').style.display = 'none';
-  document.getElementById('auth-screen').style.display = 'flex';
+  showLanding();
+}
+
+// ========== LANDING (Step 15) ==========
+function showLanding() {
+  const l = document.getElementById('landing-screen');
+  const a = document.getElementById('auth-screen');
+  if (l) l.style.display = 'block';
+  if (a) a.style.display = 'none';
+  window.scrollTo(0, 0);
+}
+
+function showAuthFromLanding(tab) {
+  const l = document.getElementById('landing-screen');
+  const a = document.getElementById('auth-screen');
+  if (l) l.style.display = 'none';
+  if (a) a.style.display = 'flex';
+  if (tab) switchAuthTab(tab);
+  window.scrollTo(0, 0);
 }
 
 // رسائل خطأ عربية مفهومة لأي خطأ من قاعدة البيانات/الشبكة (STEP 6 - B2)
@@ -7921,7 +8043,7 @@ function printCertificate(profileId) {
 // ========== START ==========
 // Set logo images
 document.addEventListener('DOMContentLoaded', () => {
-  const logoEls = ['auth-logo-img', 'header-logo-img'];
+  const logoEls = ['auth-logo-img', 'header-logo-img', 'landing-logo-img'];
   logoEls.forEach(id => {
     const el = document.getElementById(id);
     if (el) el.src = SCHOOL_LOGO;
