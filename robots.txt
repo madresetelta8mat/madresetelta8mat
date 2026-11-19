@@ -1,2 +1,4 @@
 User-agent: *
 Allow: /
+
+Sitemap: https://madresetelta8mat.pages.dev/sitemap.xml
